@@ -1,0 +1,59 @@
+package com.arcus.arc1.WorkoutTemplate;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+
+@Entity
+public class WorkoutTemplateEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private String level;
+    private String goal;
+    private Integer dayNumber;
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getLevel() {
+        return level;
+    }
+
+    public String getGoal() {
+        return goal;
+    }
+
+    public Integer getDayNumber() {
+        return dayNumber;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setLevel(String level) {
+        this.level = level;
+    }
+
+    public void setGoal(String goal) {
+        this.goal = goal;
+    }
+
+    public void setDayNumber(Integer dayNumber) {
+        this.dayNumber = dayNumber;
+    }
+}
