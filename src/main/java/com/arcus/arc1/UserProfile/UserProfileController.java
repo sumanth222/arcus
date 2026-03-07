@@ -1,0 +1,104 @@
+package com.arcus.arc1.UserProfile;
+
+import com.arcus.arc1.dto.UserProfileDTO;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Controller for user profile endpoints.
+ *
+ * Endpoints:
+ * - POST /user/profile/create - Create new user profile
+ * - GET /user/profile/{userId} - Get user profile
+ * - PUT /user/profile/{userId} - Update user profile
+ * - GET /user/profile/{userId}/refresh - Refresh statistics
+ * - GET /user/profile/{userId}/completeness - Get profile completeness
+ */
+@CrossOrigin
+@RestController
+@RequestMapping("/user/profile")
+public class UserProfileController {
+
+    private final UserProfileService userProfileService;
+
+    public UserProfileController(UserProfileService userProfileService) {
+        this.userProfileService = userProfileService;
+    }
+
+    /**
+     * Creates a new user profile.
+     *
+     * @param userId User ID
+     * @param name User's name
+     * @param email User's email
+     * @param level Fitness level (beginner, medium, advanced, expert)
+     * @param fitnessGoal Fitness goal (muscle_gain, strength, endurance, weight_loss)
+     * @return Created UserProfileDTO
+     */
+    @PostMapping("/create")
+    public UserProfileDTO createProfile(
+            @RequestParam Long userId,
+            @RequestParam String name,
+            @RequestParam String email,
+            @RequestParam String level,
+            @RequestParam String fitnessGoal) {
+
+        UserProfileEntity profile = userProfileService.createUserProfile(userId, name, email, level, fitnessGoal);
+        return userProfileService.getUserProfile(userId);
+    }
+
+    /**
+     * Retrieves user profile by user ID.
+     *
+     * @param userId User ID
+     * @return UserProfileDTO with all profile information
+     */
+    @GetMapping("/{userId}")
+    public UserProfileDTO getProfile(@PathVariable Long userId) {
+        return userProfileService.getUserProfile(userId);
+    }
+
+    /**
+     * Updates user profile information.
+     *
+     * @param userId User ID
+     * @param name Updated name (optional)
+     * @param email Updated email (optional)
+     * @param bio Updated bio (optional)
+     * @param fitnessGoal Updated fitness goal (optional)
+     * @return Updated UserProfileDTO
+     */
+    @PutMapping("/{userId}")
+    public UserProfileDTO updateProfile(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String bio,
+            @RequestParam(required = false) String fitnessGoal) {
+
+        return userProfileService.updateUserProfile(userId, name, email, bio, fitnessGoal);
+    }
+
+    /**
+     * Refreshes and recalculates user statistics from database.
+     *
+     * @param userId User ID
+     * @return Updated UserProfileDTO with fresh statistics
+     */
+    @GetMapping("/{userId}/refresh")
+    public UserProfileDTO refreshStats(@PathVariable Long userId) {
+        return userProfileService.refreshUserStats(userId);
+    }
+
+    /**
+     * Gets profile completeness percentage.
+     * Shows how much of the profile the user has filled out.
+     *
+     * @param userId User ID
+     * @return Completeness percentage (0-100)
+     */
+    @GetMapping("/{userId}/completeness")
+    public Integer getCompleteness(@PathVariable Long userId) {
+        return userProfileService.getProfileCompleteness(userId);
+    }
+}
+

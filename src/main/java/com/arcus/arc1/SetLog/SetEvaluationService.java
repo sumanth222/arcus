@@ -159,6 +159,7 @@ public class SetEvaluationService {
 
     /**
      * Checks if the exercise session has all planned sets completed.
+     * Updates the exercise session's completedSets and isCompleted fields in the database.
      *
      * @param exerciseSessionId The exercise session ID
      * @param totalSetsLogged The total number of sets logged so far
@@ -172,7 +173,18 @@ public class SetEvaluationService {
         }
 
         Integer plannedSets = exercise.getSets();
-        return plannedSets != null && plannedSets == totalSetsLogged;
+
+        // Update completedSets in the database
+        exercise.setCompletedSets(totalSetsLogged);
+
+        // Check if all sets are completed and update isCompleted flag
+        boolean allSetsCompleted = plannedSets != null && plannedSets == totalSetsLogged;
+        exercise.setIsCompleted(allSetsCompleted);
+
+        // Save the updated exercise session to database
+        exerciseSessionRepo.save(exercise);
+
+        return allSetsCompleted;
     }
 }
 

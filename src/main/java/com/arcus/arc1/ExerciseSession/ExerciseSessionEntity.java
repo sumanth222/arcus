@@ -20,6 +20,8 @@ public class ExerciseSessionEntity {
     private Integer repMax;
     private Integer sets;
     private String tempo;
+    private Integer completedSets;
+    private Boolean isCompleted;
 
     public Long getId() {
         return id;
@@ -83,6 +85,22 @@ public class ExerciseSessionEntity {
 
     public void setTempo(String tempo) {
         this.tempo = tempo;
+    }
+
+    public Integer getCompletedSets() {
+        return completedSets;
+    }
+
+    public void setCompletedSets(Integer completedSets) {
+        this.completedSets = completedSets;
+    }
+
+    public Boolean getIsCompleted() {
+        return isCompleted;
+    }
+
+    public void setIsCompleted(Boolean isCompleted) {
+        this.isCompleted = isCompleted;
     }
 }
 
