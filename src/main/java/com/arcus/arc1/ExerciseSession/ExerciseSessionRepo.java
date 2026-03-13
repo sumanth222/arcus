@@ -31,11 +31,15 @@ public interface ExerciseSessionRepo
     List<ExerciseSessionEntity> findByUserId(Long userId);
 
     /**
-     * Find recent exercise sessions for a user (last 3 workouts).
+     * Find recent exercise sessions for a user, excluding the current workout session.
+     * Only returns sessions that actually have set logs recorded (via EXISTS subquery),
+     * so unlogged sessions don't pollute history with averageReps = 0.
      */
     @Query("SELECT es FROM ExerciseSessionEntity es " +
            "JOIN WorkoutSessionEntity ws ON es.workoutSessionId = ws.id " +
            "WHERE ws.userId = :userId AND es.exerciseName = :exerciseName " +
+           "AND ws.id <> :excludeWorkoutSessionId " +
+           "AND EXISTS (SELECT 1 FROM SetLogEntity sl WHERE sl.exerciseSessionId = es.id) " +
            "ORDER BY ws.createdAt DESC")
-    List<ExerciseSessionEntity> findRecentExercisesByUserAndName(Long userId, String exerciseName);
+    List<ExerciseSessionEntity> findRecentExercisesByUserAndName(Long userId, String exerciseName, Long excludeWorkoutSessionId);
 }

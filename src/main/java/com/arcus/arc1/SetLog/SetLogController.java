@@ -2,14 +2,12 @@ package com.arcus.arc1.SetLog;
 
 import com.arcus.arc1.dto.SetLogDTO;
 import com.arcus.arc1.dto.SetEvaluationDTO;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * Controller for logging sets and retrieving set evaluation feedback.
  */
+@CrossOrigin
 @RestController
 @RequestMapping("logs")
 public class SetLogController {

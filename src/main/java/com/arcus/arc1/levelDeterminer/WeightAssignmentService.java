@@ -37,6 +37,16 @@ public class WeightAssignmentService {
     }
 
     /**
+     * Bundles all dynamic adjustments for an exercise into one result.
+     *
+     * @param weight      Adjusted target weight
+     * @param sets        Adjusted number of sets
+     * @param repMin      Adjusted minimum reps
+     * @param repMax      Adjusted maximum reps
+     */
+    public record WorkoutAdjustment(Double weight, Integer sets, Integer repMin, Integer repMax) {}
+
+    /**
      * Assigns weight for a new user based on their level.
      * New users get baseline weights appropriate for their fitness level.
      *
@@ -46,45 +56,108 @@ public class WeightAssignmentService {
      * @return Suggested starting weight
      */
     public Double assignBaseWeight(String userLevel, String exerciseName, boolean isCompound) {
-        return switch (userLevel.toLowerCase()) {
+        Double raw = switch (userLevel.toLowerCase()) {
             case "beginner" -> assignBeginnerWeight(exerciseName, isCompound);
             case "medium" -> assignMediumWeight(exerciseName, isCompound);
             case "advanced" -> assignAdvancedWeight(exerciseName, isCompound);
             case "expert" -> assignExpertWeight(exerciseName, isCompound);
             default -> WeightAssignmentConstants.BaseWeights.BEGINNER_COMPOUND;
         };
+        return roundToGymWeight(raw);
     }
 
     /**
-     * Assigns weight dynamically based on previous performance.
-     * Analyzes the last 3 sessions to determine if user should increase/maintain/decrease weight.
+     * Returns a full dynamic adjustment — weight, sets, repMin, repMax — based on
+     * the user's recent performance relative to the template defaults.
      *
-     * @param userId User ID
-     * @param exerciseName Name of the exercise
-     * @param currentWeight Current weight assigned
-     * @param repMin Minimum reps target
-     * @param repMax Maximum reps target
-     * @return Suggested weight for next session
+     * Logic (driven by performance ratio = averageReps / repMax):
+     *
+     *  ratio > 1.15  (crushed it)     → weight +15%, rep range shifts DOWN, sets +1 if sustained
+     *  ratio 1.0–1.15 (hit target)    → weight +10%, rep range unchanged, sets unchanged
+     *  ratio 0.85–1.0 (within range)  → weight +10%, rep range unchanged, sets unchanged
+     *  ratio < 0.85  (struggled)      → weight −10/20%, rep range shifts UP, sets −1
+     *
+     * @param recentSessions    Pre-fetched recent exercise sessions (with set logs)
+     * @param currentWeight     Last session's target weight
+     * @param templateSets      Template-defined default number of sets
+     * @param templateRepMin    Template-defined minimum reps
+     * @param templateRepMax    Template-defined maximum reps
+     * @return WorkoutAdjustment with new weight, sets, repMin, repMax
      */
-    public Double assignDynamicWeight(Long userId, String exerciseName, Double currentWeight,
-                                       Integer repMin, Integer repMax) {
-        // Get recent exercise sessions (last 3 times user did this exercise)
-        List<ExerciseSessionEntity> recentSessions = exerciseSessionRepo
-                .findRecentExercisesByUserAndName(userId, exerciseName)
-                .stream()
-                .limit(3)
-                .toList();
-
+    public WorkoutAdjustment assignDynamicAdjustment(List<ExerciseSessionEntity> recentSessions,
+                                                      Double currentWeight, Integer templateSets,
+                                                      Integer templateRepMin, Integer templateRepMax) {
         if (recentSessions.isEmpty()) {
-            // No history - return current weight
-            return currentWeight;
+            return new WorkoutAdjustment(currentWeight, templateSets, templateRepMin, templateRepMax);
         }
 
-        // Calculate average reps achieved across last 3 sessions
         double averageReps = calculateAverageRepsForSessions(recentSessions);
 
-        // Determine weight adjustment based on performance
-        return calculateAdjustedWeight(currentWeight, averageReps, repMin, repMax);
+        // No set logs found in history (sessions exist but were never logged) — keep current weight
+        if (averageReps == 0) {
+            return new WorkoutAdjustment(currentWeight, templateSets, templateRepMin, templateRepMax);
+        }
+
+        double performanceRatio = averageReps / templateRepMax;
+
+        Double newWeight;
+        int newSets = templateSets;
+        int newRepMin = templateRepMin;
+        int newRepMax = templateRepMax;
+
+        if (performanceRatio > WeightAssignmentConstants.VolumeAdjustment.CRUSHED_THRESHOLD) {
+            // User is comfortably exceeding the target — increase weight and compress rep range
+            // so they're still working hard at the new heavier load
+            newWeight = increaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.INCREASE_SIGNIFICANT);
+            newRepMin = Math.max(
+                    templateRepMin - WeightAssignmentConstants.VolumeAdjustment.REP_COMPRESS_AMOUNT,
+                    WeightAssignmentConstants.VolumeAdjustment.REP_MIN_FLOOR
+            );
+            newRepMax = Math.max(
+                    templateRepMax - WeightAssignmentConstants.VolumeAdjustment.REP_COMPRESS_AMOUNT,
+                    WeightAssignmentConstants.VolumeAdjustment.REP_MIN_FLOOR + 1
+            );
+            // Reward sustained dominance with an extra set
+            newSets = Math.min(
+                    templateSets + WeightAssignmentConstants.VolumeAdjustment.MAX_EXTRA_SETS,
+                    templateSets + 1
+            );
+
+        } else if (performanceRatio >= WeightAssignmentConstants.VolumeAdjustment.COMPLETED_THRESHOLD) {
+            // User hit or slightly exceeded target — standard progression, rep range stays
+            newWeight = increaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.INCREASE_MODERATE);
+            // Rep range and sets stay as template
+
+        } else if (performanceRatio >= WeightAssignmentConstants.VolumeAdjustment.IN_RANGE_THRESHOLD) {
+            // User was in range but below max — still increase weight, rep range stays
+            newWeight = increaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.INCREASE_MODERATE);
+            // Rep range and sets stay as template
+
+        } else {
+            // User struggled — reduce weight and expand rep range upward so volume is maintained
+            // at a lighter load with more reps
+            boolean significantStruggle = averageReps < templateRepMin -
+                    WeightAssignmentConstants.RepThresholds.DECREASE_REP_THRESHOLD;
+            newWeight = significantStruggle
+                    ? decreaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.DECREASE_SIGNIFICANT)
+                    : decreaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.DECREASE_MODERATE);
+
+            newRepMin = Math.min(
+                    templateRepMin + WeightAssignmentConstants.VolumeAdjustment.REP_EXPAND_AMOUNT,
+                    WeightAssignmentConstants.VolumeAdjustment.REP_MAX_CEILING - 1
+            );
+            newRepMax = Math.min(
+                    templateRepMax + WeightAssignmentConstants.VolumeAdjustment.REP_EXPAND_AMOUNT,
+                    WeightAssignmentConstants.VolumeAdjustment.REP_MAX_CEILING
+            );
+            // Reduce sets by 1 to prevent overtraining when struggling
+            newSets = Math.max(
+                    templateSets - WeightAssignmentConstants.VolumeAdjustment.MAX_REMOVED_SETS,
+                    1
+            );
+        }
+
+        return new WorkoutAdjustment(newWeight, newSets, newRepMin, newRepMax);
     }
 
     /**
@@ -101,13 +174,20 @@ public class WeightAssignmentService {
             // Get all set logs for this exercise session
             List<SetLogEntity> setsLogged = setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(session.getId());
 
+            System.out.println("[WEIGHT-DEBUG] Session id=" + session.getId() +
+                    " ('" + session.getExerciseName() + "') → set logs found: " + setsLogged.size());
+
             for (SetLogEntity set : setsLogged) {
+                System.out.println("[WEIGHT-DEBUG]   Set #" + set.getSetNumber() +
+                        " → weight=" + set.getWeight() + ", reps=" + set.getReps());
                 totalReps += set.getReps();
                 totalSets++;
             }
         }
 
-        return totalSets > 0 ? totalReps / totalSets : 0;
+        double avg = totalSets > 0 ? totalReps / totalSets : 0;
+        System.out.println("[WEIGHT-DEBUG] averageReps = " + avg + " (totalReps=" + totalReps + ", totalSets=" + totalSets + ")");
+        return avg;
     }
 
     /**
@@ -121,28 +201,32 @@ public class WeightAssignmentService {
      */
     private Double calculateAdjustedWeight(Double currentWeight, double averageReps,
                                            Integer repMin, Integer repMax) {
-        // User completed significantly more reps than target
+        // User completed significantly more reps than target - increase weight significantly
         if (averageReps > repMax + WeightAssignmentConstants.RepThresholds.INCREASE_REP_THRESHOLD) {
             return increaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.INCREASE_SIGNIFICANT);
         }
 
-        // User completed within range or slightly above max
-        if (averageReps >= repMin && averageReps <= repMax + 1) {
-            // Good performance - slight increase
+        // User completed within or above target range - increase weight moderately
+        if (averageReps >= repMax) {
             return increaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.INCREASE_MODERATE);
         }
 
-        // User struggled (reps below minimum)
+        // User completed all sets within the range but not at max - still increase
+        if (averageReps >= repMin) {
+            return increaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.INCREASE_MODERATE);
+        }
+
+        // User struggled significantly (reps well below minimum)
         if (averageReps < repMin - WeightAssignmentConstants.RepThresholds.DECREASE_REP_THRESHOLD) {
             return decreaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.DECREASE_SIGNIFICANT);
         }
 
-        // User struggled slightly
+        // User struggled slightly (reps below minimum but not by much)
         if (averageReps < repMin) {
             return decreaseWeight(currentWeight, WeightAssignmentConstants.AdjustmentFactors.DECREASE_MODERATE);
         }
 
-        // Performance within range - maintain weight
+        // Should not reach here but maintain weight as fallback
         return currentWeight;
     }
 
@@ -151,25 +235,25 @@ public class WeightAssignmentService {
      *
      * @param currentWeight Current weight
      * @param factor Multiplication factor
-     * @return Increased weight, rounded to nearest 2.5
+     * @return Increased weight, rounded to nearest 5kg
      */
     private Double increaseWeight(Double currentWeight, Double factor) {
+        return roundToGymWeight(currentWeight * factor);
+    }
+
+    private Double decreaseWeight(Double currentWeight, Double factor) {
         double newWeight = currentWeight * factor;
-        // Round to nearest 2.5 for practicality (gym plates come in 2.5 kg increments)
-        return Math.round(newWeight / 2.5) * 2.5;
+        return Math.max(roundToGymWeight(newWeight), WeightAssignmentConstants.AdjustmentFactors.MINIMUM_WEIGHT);
     }
 
     /**
-     * Decreases weight with minimum floor.
-     *
-     * @param currentWeight Current weight
-     * @param factor Multiplication factor (< 1.0)
-     * @return Decreased weight, not below minimum
+     * Rounds a weight to the nearest valid gym increment.
+     * Valid weights are multiples of 5, or multiples of 5 ± 2.5 (e.g. 2.5, 5, 7.5, 10, 12.5, ...)
+     * This is achieved by rounding to the nearest 2.5.
      */
-    private Double decreaseWeight(Double currentWeight, Double factor) {
-        double newWeight = currentWeight * factor;
-        // Never go below minimum safe weight
-        return Math.max(newWeight, WeightAssignmentConstants.AdjustmentFactors.MINIMUM_WEIGHT);
+    private Double roundToGymWeight(double weight) {
+        final double increment = WeightAssignmentConstants.AdjustmentFactors.ROUNDING_INCREMENT; // 2.5
+        return Math.round(weight / increment) * increment;
     }
 
     // Weight assignment by level

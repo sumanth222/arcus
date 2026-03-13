@@ -59,7 +59,7 @@ public class UserProfileService {
     /**
      * Updates user profile information.
      */
-    public UserProfileDTO updateUserProfile(Long userId, String name, String email, String bio, String fitnessGoal) {
+    public UserProfileDTO updateUserProfile(Long userId, String name, String email, String bio, String fitnessGoal, Integer lastWorkoutDay) {
         UserProfileEntity profile = userProfileRepo.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User profile not found for userId: " + userId));
 
@@ -67,6 +67,7 @@ public class UserProfileService {
         if (email != null) profile.setEmail(email);
         if (bio != null) profile.setBio(bio);
         if (fitnessGoal != null) profile.setFitnessGoal(fitnessGoal);
+        if (lastWorkoutDay != null) profile.setLastWorkoutDay(lastWorkoutDay);
 
         profile.setLastUpdatedAt(LocalDateTime.now());
         profile = userProfileRepo.save(profile);

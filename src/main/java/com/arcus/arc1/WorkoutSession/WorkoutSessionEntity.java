@@ -18,6 +18,7 @@ public class WorkoutSessionEntity {
     private Long templateId;
     private LocalDateTime createdAt;
     private boolean completed;
+    private int totalWeight;
 
     public Long getId() {
         return id;
@@ -57,5 +58,13 @@ public class WorkoutSessionEntity {
 
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    public int getTotalWeight() {
+        return totalWeight;
+    }
+
+    public void setTotalWeight(int totalWeight) {
+        this.totalWeight = totalWeight;
     }
 }

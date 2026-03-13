@@ -65,6 +65,7 @@ public class UserProfileController {
      * @param email Updated email (optional)
      * @param bio Updated bio (optional)
      * @param fitnessGoal Updated fitness goal (optional)
+     * @param lastWorkoutDay Updated last workout day (optional)
      * @return Updated UserProfileDTO
      */
     @PutMapping("/{userId}")
@@ -73,9 +74,10 @@ public class UserProfileController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String bio,
-            @RequestParam(required = false) String fitnessGoal) {
+            @RequestParam(required = false) String fitnessGoal,
+            @RequestParam(required = false) Integer lastWorkoutDay) {
 
-        return userProfileService.updateUserProfile(userId, name, email, bio, fitnessGoal);
+        return userProfileService.updateUserProfile(userId, name, email, bio, fitnessGoal, lastWorkoutDay);
     }
 
     /**

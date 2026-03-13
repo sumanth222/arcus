@@ -6,14 +6,16 @@ public class WorkoutResponseDTO {
 
     private Long sessionId;
     private String level;
+    private Integer dayNumber;
     private List<ExerciseDTO> exercises;
 
     public WorkoutResponseDTO() {
     }
 
-    public WorkoutResponseDTO(Long sessionId, String level, List<ExerciseDTO> exercises) {
+    public WorkoutResponseDTO(Long sessionId, String level, Integer dayNumber, List<ExerciseDTO> exercises) {
         this.sessionId = sessionId;
         this.level = level;
+        this.dayNumber = dayNumber;
         this.exercises = exercises;
     }
 
@@ -31,6 +33,14 @@ public class WorkoutResponseDTO {
 
     public void setLevel(String level) {
         this.level = level;
+    }
+
+    public Integer getDayNumber() {
+        return dayNumber;
+    }
+
+    public void setDayNumber(Integer dayNumber) {
+        this.dayNumber = dayNumber;
     }
 
     public List<ExerciseDTO> getExercises() {

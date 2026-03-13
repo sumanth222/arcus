@@ -9,8 +9,10 @@ import com.arcus.arc1.WorkoutTemplate.WorkoutTemplateRepo;
 import com.arcus.arc1.UserProfile.UserProfileEntity;
 import com.arcus.arc1.UserProfile.UserProfileRepo;
 import com.arcus.arc1.dto.ExerciseDTO;
+import com.arcus.arc1.dto.NextWorkoutInfoDTO;
 import com.arcus.arc1.dto.WorkoutResponseDTO;
 import com.arcus.arc1.levelDeterminer.WeightAssignmentService;
+import com.arcus.arc1.levelDeterminer.WeightAssignmentService.WorkoutAdjustment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -66,13 +68,20 @@ public class WorkoutGenerationService {
 
         List<ExerciseDTO> exerciseDTOList = new ArrayList<>();
 
-        // Fetch template for this level
+        // Determine the user's fitness goal (default to muscle_gain)
+        String goal = "muscle_gain";
+
+        // Determine which day to generate based on user's last completed workout day
+        int nextDay = determineNextDay(userId, level, goal);
+
+        // Fetch template for this level and day
         WorkoutTemplateEntity template =
                 templateRepo.findByLevelAndGoalAndDayNumber(
                         level,
-                        "muscle_gain",
-                        1 // for now hardcoded day 1
-                ).orElseThrow();
+                        goal,
+                        nextDay
+                ).orElseThrow(() -> new RuntimeException(
+                        "No template found for level=" + level + ", goal=" + goal + ", day=" + nextDay));
 
         // Create new workout session
         WorkoutSessionEntity session = new WorkoutSessionEntity();
@@ -96,21 +105,21 @@ public class WorkoutGenerationService {
             ExerciseSessionEntity es = new ExerciseSessionEntity();
             es.setWorkoutSessionId(session.getId());
             es.setExerciseName(te.getExerciseName());
-            es.setRepMin(te.getRepMin());
-            es.setRepMax(te.getRepMax());
-            es.setSets(te.getSets());
             es.setTempo(te.getTempo());
 
-            // Intelligently assign weight
-            Double assignedWeight = assignWeightForExercise(userId, level, te);
-            es.setTargetWeight(assignedWeight);
+            // Intelligently assign weight, sets, and rep range
+            WorkoutAdjustment adjustment = assignAdjustmentForExercise(userId, level, te, session.getId());
+            es.setTargetWeight(adjustment.weight());
+            es.setSets(adjustment.sets());
+            es.setRepMin(adjustment.repMin());
+            es.setRepMax(adjustment.repMax());
 
             es = exerciseSessionRepo.save(es);
 
             // Calculate total sets and weight for profile update
-            totalSets += te.getSets();
+            totalSets += adjustment.sets();
             // Weight = weight × average reps (using rep max as estimate)
-            totalWeightCalculated += assignedWeight * te.getRepMax();
+            totalWeightCalculated += adjustment.weight() * adjustment.repMax();
 
             // Build response DTO
             ExerciseDTO exerciseDTO = new ExerciseDTO();
@@ -128,7 +137,36 @@ public class WorkoutGenerationService {
         // Update user profile with workout statistics
         updateUserProfile(userId, exercises.size(), totalSets, totalWeightCalculated);
 
-        return new WorkoutResponseDTO(session.getId(), level, exerciseDTOList);
+        return new WorkoutResponseDTO(session.getId(), level, nextDay, exerciseDTOList);
+    }
+
+    /**
+     * Determines the next workout day for the user based on their history.
+     * Looks at the user's last completed workout day from their profile,
+     * then returns the next day in the cycle. Wraps back to day 1 after
+     * completing all days in the program.
+     *
+     * @param userId User ID
+     * @param level  User's fitness level
+     * @param goal   User's fitness goal
+     * @return The next day number to generate
+     */
+    private int determineNextDay(Long userId, String level, String goal) {
+        // Find max day number for this level and goal
+        int maxDay = templateRepo.findMaxDayNumberByLevelAndGoal(level, goal).orElse(1);
+
+        // Look up the user's last completed workout day from their profile
+        UserProfileEntity profile = userProfileRepo.findByUserId(userId).orElse(null);
+
+        if (profile == null || profile.getLastWorkoutDay() == null || profile.getLastWorkoutDay() == 0) {
+            // New user or no history — start at day 1
+            return 1;
+        }
+
+        int lastDay = profile.getLastWorkoutDay();
+
+        // Next day, cycling back to 1 after completing all days
+        return (lastDay >= maxDay) ? 1 : lastDay + 1;
     }
 
     /**
@@ -139,7 +177,8 @@ public class WorkoutGenerationService {
      * @param totalSets Total number of sets in the workout
      * @param totalWeight Estimated total weight to be lifted
      */
-    private void updateUserProfile(Long userId, int totalExercises, int totalSets, double totalWeight) {
+    private void updateUserProfile(Long userId, int totalExercises, int totalSets,
+                                   double totalWeight) {
         try {
             UserProfileEntity profile = userProfileRepo.findByUserId(userId)
                     .orElse(null);
@@ -165,38 +204,112 @@ public class WorkoutGenerationService {
     }
 
     /**
-     * Assigns weight for an exercise based on user history and level.
+     * Assigns weight, sets, and rep range for an exercise based on user history and level.
+     * For new users, returns template defaults with base weight.
+     * For returning users, dynamically adjusts all three based on performance.
      *
      * @param userId User ID
      * @param level User's level
-     * @param templateExercise Template exercise with rep ranges
-     * @return Assigned weight
+     * @param templateExercise Template exercise with default rep ranges and sets
+     * @return WorkoutAdjustment with weight, sets, repMin, repMax
      */
-    private Double assignWeightForExercise(Long userId, String level, TemplateExerciseEntity templateExercise) {
+    private WorkoutAdjustment assignAdjustmentForExercise(Long userId, String level,
+                                                           TemplateExerciseEntity templateExercise,
+                                                           Long currentWorkoutSessionId) {
         String exerciseName = templateExercise.getExerciseName();
 
-        // Check if user has previous performance data for this exercise
         List<ExerciseSessionEntity> previousSessions = exerciseSessionRepo
-                .findRecentExercisesByUserAndName(userId, exerciseName)
+                .findRecentExercisesByUserAndName(userId, exerciseName, currentWorkoutSessionId)
                 .stream()
                 .limit(3)
                 .toList();
 
+        System.out.println("[WEIGHT-DEBUG] Exercise: '" + exerciseName +
+                "' | userId: " + userId +
+                "' | excludeSessionId: " + currentWorkoutSessionId +
+                " | previousSessions found: " + previousSessions.size());
+
         if (previousSessions.isEmpty()) {
-            // New user or first time doing this exercise - assign base weight by level
+            // New user or first time doing this exercise — assign base weight, keep template sets/reps
             boolean isCompound = isCompoundExercise(exerciseName);
-            return weightAssignmentService.assignBaseWeight(level, exerciseName, isCompound);
+            Double baseWeight = weightAssignmentService.assignBaseWeight(level, exerciseName, isCompound);
+            System.out.println("[WEIGHT-DEBUG] No history for '" + exerciseName + "' → base weight: " + baseWeight);
+            return new WorkoutAdjustment(baseWeight, templateExercise.getSets(),
+                    templateExercise.getRepMin(), templateExercise.getRepMax());
         }
 
-        // User has history - assign dynamically based on previous performance
-        // Use the most recent weight as baseline
+        // Returning user — dynamically adjust weight, sets, and rep range based on performance
         Double currentWeight = previousSessions.getFirst().getTargetWeight();
-        return weightAssignmentService.assignDynamicWeight(
-                userId,
-                exerciseName,
+        System.out.println("[WEIGHT-DEBUG] History found for '" + exerciseName +
+                "' | currentWeight: " + currentWeight +
+                " | sessionIds: " + previousSessions.stream()
+                    .map(s -> String.valueOf(s.getId()))
+                    .reduce((a, b) -> a + "," + b).orElse("none"));
+
+        WorkoutAdjustment result = weightAssignmentService.assignDynamicAdjustment(
+                previousSessions,
                 currentWeight,
+                templateExercise.getSets(),
                 templateExercise.getRepMin(),
                 templateExercise.getRepMax()
+        );
+
+        System.out.println("[WEIGHT-DEBUG] Result for '" + exerciseName +
+                "' → weight: " + result.weight() +
+                " | sets: " + result.sets() +
+                " | repMin: " + result.repMin() +
+                " | repMax: " + result.repMax());
+
+        return result;
+    }
+
+    /**
+     * Returns info about the user's next workout and their last workout details.
+     * Looks up the last workout session from the workout_session table,
+     * resolves the template name from the template_id, and also computes the next workout.
+     *
+     * @param userId User ID
+     * @param level  User's fitness level
+     * @return NextWorkoutInfoDTO with next and last workout details
+     */
+    public NextWorkoutInfoDTO getNextWorkoutInfo(Long userId, String level) {
+        String goal = "muscle_gain";
+        int nextDay = determineNextDay(userId, level, goal);
+
+        WorkoutTemplateEntity nextTemplate = templateRepo.findByLevelAndGoalAndDayNumber(level, goal, nextDay)
+                .orElseThrow(() -> new RuntimeException(
+                        "No template found for level=" + level + ", goal=" + goal + ", day=" + nextDay));
+
+        // Look up the user's most recent COMPLETED workout session for last workout details
+        String lastWorkoutName = null;
+        Integer lastDayNumber = null;
+        LocalDateTime lastWorkoutDate = null;
+        boolean lastWorkoutCompleted = false;
+        Integer lastWorkoutTotalWeight = null;
+
+        WorkoutSessionEntity lastSession = workoutSessionRepo
+                .findTopByUserIdAndCompletedTrueOrderByCreatedAtDesc(userId)
+                .orElse(null);
+
+        if (lastSession != null) {
+            lastWorkoutDate = lastSession.getCreatedAt();
+            lastWorkoutCompleted = lastSession.isCompleted();
+            lastWorkoutTotalWeight = lastSession.getTotalWeight();
+
+            // Resolve the template name from the last session's templateId
+            WorkoutTemplateEntity lastTemplate = templateRepo.findById(lastSession.getTemplateId())
+                    .orElse(null);
+            if (lastTemplate != null) {
+                lastWorkoutName = lastTemplate.getName();
+                lastDayNumber = lastTemplate.getDayNumber();
+            }
+        }
+
+        return new NextWorkoutInfoDTO(
+                nextTemplate.getName(), nextDay,
+                lastWorkoutName, lastDayNumber,
+                lastWorkoutDate, lastWorkoutCompleted,
+                lastWorkoutTotalWeight
         );
     }
 
@@ -223,6 +336,16 @@ public class WorkoutGenerationService {
         }
 
         return false;
+    }
+
+    void finishWorkout(Long userId, int totalWeights){
+        // Update Workout session entity with status and total weight.
+        WorkoutSessionEntity workoutSessionEntity =
+                workoutSessionRepo.findTopByUserIdAndCompletedFalseOrderByCreatedAtDesc((long) userId)
+                .orElseThrow(() -> new RuntimeException("No active workout session found for userId: " + userId));
+        workoutSessionEntity.setCompleted(true);
+        workoutSessionEntity.setTotalWeight(totalWeights);
+        workoutSessionRepo.save(workoutSessionEntity);
     }
 }
 
