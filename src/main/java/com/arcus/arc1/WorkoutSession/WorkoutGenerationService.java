@@ -130,6 +130,7 @@ public class WorkoutGenerationService {
             exerciseDTO.setRepMax(es.getRepMax());
             exerciseDTO.setSets(es.getSets());
             exerciseDTO.setTempo(es.getTempo());
+            exerciseDTO.setTip(te.getTip());
 
             exerciseDTOList.add(exerciseDTO);
         }
@@ -285,7 +286,7 @@ public class WorkoutGenerationService {
         Integer lastDayNumber = null;
         LocalDateTime lastWorkoutDate = null;
         boolean lastWorkoutCompleted = false;
-        Integer lastWorkoutTotalWeight = null;
+        Double lastWorkoutTotalWeight = null;
 
         WorkoutSessionEntity lastSession = workoutSessionRepo
                 .findTopByUserIdAndCompletedTrueOrderByCreatedAtDesc(userId)
@@ -338,13 +339,13 @@ public class WorkoutGenerationService {
         return false;
     }
 
-    void finishWorkout(Long userId, int totalWeights){
+    void finishWorkout(Long userId, double totalWeight){
         // Update Workout session entity with status and total weight.
         WorkoutSessionEntity workoutSessionEntity =
                 workoutSessionRepo.findTopByUserIdAndCompletedFalseOrderByCreatedAtDesc((long) userId)
                 .orElseThrow(() -> new RuntimeException("No active workout session found for userId: " + userId));
         workoutSessionEntity.setCompleted(true);
-        workoutSessionEntity.setTotalWeight(totalWeights);
+        workoutSessionEntity.setTotalWeight(totalWeight);
         workoutSessionRepo.save(workoutSessionEntity);
     }
 }

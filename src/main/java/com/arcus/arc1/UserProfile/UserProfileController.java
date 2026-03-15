@@ -1,5 +1,6 @@
 package com.arcus.arc1.UserProfile;
 
+import com.arcus.arc1.dto.CreateProfileRequest;
 import com.arcus.arc1.dto.UserProfileDTO;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,23 +28,22 @@ public class UserProfileController {
     /**
      * Creates a new user profile.
      *
-     * @param userId User ID
-     * @param name User's name
-     * @param email User's email
-     * @param level Fitness level (beginner, medium, advanced, expert)
-     * @param fitnessGoal Fitness goal (muscle_gain, strength, endurance, weight_loss)
+     * @param request JSON body with name, email, currentLevel, fitnessGoal, workoutSplit, lastWorkoutDay
      * @return Created UserProfileDTO
      */
     @PostMapping("/create")
-    public UserProfileDTO createProfile(
-            @RequestParam Long userId,
-            @RequestParam String name,
-            @RequestParam String email,
-            @RequestParam String level,
-            @RequestParam String fitnessGoal) {
+    public UserProfileDTO createProfile(@RequestBody CreateProfileRequest request) {
 
-        UserProfileEntity profile = userProfileService.createUserProfile(userId, name, email, level, fitnessGoal);
-        return userProfileService.getUserProfile(userId);
+        return userProfileService.createUserProfile(
+                request.getUserId(),
+                request.getName(),
+                request.getEmail(),
+                request.getCurrentLevel(),
+                request.getFitnessGoal(),
+                request.getWorkoutSplit(),
+                request.getLastWorkoutDay(),
+                request.getCredentialsId()
+        );
     }
 
     /**

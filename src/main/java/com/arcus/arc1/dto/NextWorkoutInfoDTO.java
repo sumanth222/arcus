@@ -10,14 +10,14 @@ public class NextWorkoutInfoDTO {
     private Integer lastDayNumber;
     private LocalDateTime lastWorkoutDate;
     private boolean lastWorkoutCompleted;
-    private Integer lastWorkoutTotalWeight;
+    private Double lastWorkoutTotalWeight;
 
     public NextWorkoutInfoDTO() {}
 
     public NextWorkoutInfoDTO(String nextWorkoutName, Integer nextDayNumber,
                               String lastWorkoutName, Integer lastDayNumber,
                               LocalDateTime lastWorkoutDate, boolean lastWorkoutCompleted,
-                              Integer lastWorkoutTotalWeight) {
+                              Double lastWorkoutTotalWeight) {
         this.nextWorkoutName = nextWorkoutName;
         this.nextDayNumber = nextDayNumber;
         this.lastWorkoutName = lastWorkoutName;
@@ -45,7 +45,6 @@ public class NextWorkoutInfoDTO {
     public boolean isLastWorkoutCompleted() { return lastWorkoutCompleted; }
     public void setLastWorkoutCompleted(boolean lastWorkoutCompleted) { this.lastWorkoutCompleted = lastWorkoutCompleted; }
 
-    public Integer getLastWorkoutTotalWeight() { return lastWorkoutTotalWeight; }
-    public void setLastWorkoutTotalWeight(Integer lastWorkoutTotalWeight) { this.lastWorkoutTotalWeight = lastWorkoutTotalWeight; }
+    public Double getLastWorkoutTotalWeight() { return lastWorkoutTotalWeight; }
+    public void setLastWorkoutTotalWeight(Double lastWorkoutTotalWeight) { this.lastWorkoutTotalWeight = lastWorkoutTotalWeight; }
 }
-

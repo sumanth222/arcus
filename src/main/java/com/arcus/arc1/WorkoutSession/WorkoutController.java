@@ -28,7 +28,7 @@ public class WorkoutController {
     }
 
     @PostMapping("/completeWorkout")
-    public void finishWorkout(@RequestParam Long userId, @RequestParam int totalWeight) {
+    public void finishWorkout(@RequestParam Long userId, @RequestParam double totalWeight) {
         workoutGenerationService.finishWorkout(userId, totalWeight);
     }
  }

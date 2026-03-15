@@ -20,6 +20,7 @@ public class TemplateExerciseEntity {
     private Integer repMax;
     private String tempo;
     private Integer orderIndex;
+    private String tip;
 
     public Long getId() {
         return id;
@@ -83,5 +84,13 @@ public class TemplateExerciseEntity {
 
     public void setOrderIndex(Integer orderIndex) {
         this.orderIndex = orderIndex;
+    }
+
+    public String getTip() {
+        return tip;
+    }
+
+    public void setTip(String tip) {
+        this.tip = tip;
     }
 }

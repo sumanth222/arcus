@@ -9,11 +9,12 @@ public class ExerciseDTO {
     private Integer repMax;
     private Integer sets;
     private String tempo;
+    private String tip;
 
     public ExerciseDTO() {
     }
 
-    public ExerciseDTO(Long exerciseSessionId, String exerciseName, Double targetWeight, Integer repMin, Integer repMax, Integer sets, String tempo) {
+    public ExerciseDTO(Long exerciseSessionId, String exerciseName, Double targetWeight, Integer repMin, Integer repMax, Integer sets, String tempo, String tip) {
         this.exerciseSessionId = exerciseSessionId;
         this.exerciseName = exerciseName;
         this.targetWeight = targetWeight;
@@ -21,6 +22,7 @@ public class ExerciseDTO {
         this.repMax = repMax;
         this.sets = sets;
         this.tempo = tempo;
+        this.tip = tip;
     }
 
     public Long getExerciseSessionId() {
@@ -77,5 +79,13 @@ public class ExerciseDTO {
 
     public void setTempo(String tempo) {
         this.tempo = tempo;
+    }
+
+    public String getTip() {
+        return tip;
+    }
+
+    public void setTip(String tip) {
+        this.tip = tip;
     }
 }

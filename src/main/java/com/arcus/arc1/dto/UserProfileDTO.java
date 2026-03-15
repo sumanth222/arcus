@@ -28,6 +28,7 @@ public class UserProfileDTO {
 
     private Integer lastWorkoutDay;
     private Integer lastExerciseSessionId;
+    private String workoutSplit;
 
     // Constructor
     public UserProfileDTO() {}
@@ -174,6 +175,14 @@ public class UserProfileDTO {
 
     public void setLastExerciseSessionId(Integer lastExerciseSessionId) {
         this.lastExerciseSessionId = lastExerciseSessionId;
+    }
+
+    public String getWorkoutSplit() {
+        return workoutSplit;
+    }
+
+    public void setWorkoutSplit(String workoutSplit) {
+        this.workoutSplit = workoutSplit;
     }
 }
 

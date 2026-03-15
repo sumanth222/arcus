@@ -71,6 +71,9 @@ public class UserProfileEntity {
     @Column(nullable = true)
     private Integer lastExerciseSessionId = 0;
 
+    @Column(nullable = true)
+    private String workoutSplit;
+
     // Constructor
     public UserProfileEntity() {}
 
@@ -227,6 +230,14 @@ public class UserProfileEntity {
 
     public void setLastExerciseSessionId(Integer lastExerciseSessionId) {
         this.lastExerciseSessionId = lastExerciseSessionId;
+    }
+
+    public String getWorkoutSplit() {
+        return workoutSplit;
+    }
+
+    public void setWorkoutSplit(String workoutSplit) {
+        this.workoutSplit = workoutSplit;
     }
 
     // Helper methods

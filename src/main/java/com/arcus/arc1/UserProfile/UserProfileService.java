@@ -4,6 +4,8 @@ import com.arcus.arc1.ExerciseSession.ExerciseSessionEntity;
 import com.arcus.arc1.ExerciseSession.ExerciseSessionRepo;
 import com.arcus.arc1.SetLog.SetLogEntity;
 import com.arcus.arc1.SetLog.SetLogRepo;
+import com.arcus.arc1.UserCredentials.UserCredentials;
+import com.arcus.arc1.UserCredentials.UserCredentialsRepository;
 import com.arcus.arc1.WorkoutSession.WorkoutSessionEntity;
 import com.arcus.arc1.WorkoutSession.WorkoutSessionRepo;
 import com.arcus.arc1.dto.UserProfileDTO;
@@ -23,28 +25,58 @@ public class UserProfileService {
     private final WorkoutSessionRepo workoutSessionRepo;
     private final ExerciseSessionRepo exerciseSessionRepo;
     private final SetLogRepo setLogRepo;
+    private final UserCredentialsRepository credentialsRepo;
 
     public UserProfileService(UserProfileRepo userProfileRepo,
                              WorkoutSessionRepo workoutSessionRepo,
                              ExerciseSessionRepo exerciseSessionRepo,
-                             SetLogRepo setLogRepo) {
+                             SetLogRepo setLogRepo,
+                             UserCredentialsRepository credentialsRepo) {
         this.userProfileRepo = userProfileRepo;
         this.workoutSessionRepo = workoutSessionRepo;
         this.exerciseSessionRepo = exerciseSessionRepo;
         this.setLogRepo = setLogRepo;
+        this.credentialsRepo = credentialsRepo;
     }
 
     /**
      * Creates a new user profile.
+     * If userId is null (new user), auto-generates one from the saved entity's id.
+     * If credentialsId is provided, links the UserCredentials to this profile.
      */
-    public UserProfileEntity createUserProfile(Long userId, String name, String email,
-                                              String level, String fitnessGoal) {
-        if (userProfileRepo.existsByUserId(userId)) {
+    public UserProfileDTO createUserProfile(Long userId, String name, String email,
+                                              String level, String fitnessGoal,
+                                              String workoutSplit, Integer lastWorkoutDay,
+                                              Long credentialsId) {
+        if (userId != null && userProfileRepo.existsByUserId(userId)) {
             throw new IllegalArgumentException("User profile already exists for userId: " + userId);
         }
 
-        UserProfileEntity profile = new UserProfileEntity(userId, name, email, level, fitnessGoal, 0, 0);
-        return userProfileRepo.save(profile);
+        UserProfileEntity profile = new UserProfileEntity(userId, name, email, level, fitnessGoal,
+                lastWorkoutDay != null ? lastWorkoutDay : 0, 0);
+        profile.setWorkoutSplit(workoutSplit);
+
+        // If userId is null, we need to save first to get the auto-generated id,
+        // then use that id as the userId
+        if (userId == null) {
+            profile.setUserId(0L); // temporary non-null value to pass DB constraint
+            profile = userProfileRepo.save(profile);
+            profile.setUserId(profile.getId());
+            profile = userProfileRepo.save(profile);
+        } else {
+            profile = userProfileRepo.save(profile);
+        }
+
+        // Link the auth credentials to this profile
+        if (credentialsId != null) {
+            UserCredentials credentials = credentialsRepo.findById(credentialsId).orElse(null);
+            if (credentials != null) {
+                credentials.setUserId(profile.getUserId());
+                credentialsRepo.save(credentials);
+            }
+        }
+
+        return convertToDTO(profile);
     }
 
     /**
@@ -139,7 +171,7 @@ public class UserProfileService {
      * Converts UserProfileEntity to UserProfileDTO.
      */
     private UserProfileDTO convertToDTO(UserProfileEntity profile) {
-        return new UserProfileDTO(
+        UserProfileDTO dto = new UserProfileDTO(
                 profile.getUserId(),
                 profile.getName(),
                 profile.getEmail(),
@@ -156,6 +188,8 @@ public class UserProfileService {
                 profile.getLastWorkoutDay(),
                 profile.getLastExerciseSessionId()
         );
+        dto.setWorkoutSplit(profile.getWorkoutSplit());
+        return dto;
     }
 
     /**
