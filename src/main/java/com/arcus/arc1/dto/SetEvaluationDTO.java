@@ -9,6 +9,8 @@ public class SetEvaluationDTO {
     private Integer suggestedRestSeconds;
     private String message;
     private Boolean exerciseCompleted;
+    private Double nextSetWeight;
+    private Integer nextSetReps;
 
     public SetEvaluationDTO(Boolean fatigueDetected, Integer suggestedRestSeconds, String message) {
         this.fatigueDetected = fatigueDetected;
@@ -22,6 +24,15 @@ public class SetEvaluationDTO {
         this.suggestedRestSeconds = suggestedRestSeconds;
         this.message = message;
         this.exerciseCompleted = exerciseCompleted;
+    }
+
+    public SetEvaluationDTO(Boolean fatigueDetected, Integer suggestedRestSeconds, String message, Boolean exerciseCompleted, Double nextSetWeight, Integer nextSetReps) {
+        this.fatigueDetected = fatigueDetected;
+        this.suggestedRestSeconds = suggestedRestSeconds;
+        this.message = message;
+        this.exerciseCompleted = exerciseCompleted;
+        this.nextSetWeight = nextSetWeight;
+        this.nextSetReps = nextSetReps;
     }
 
     public Boolean getFatigueDetected() {
@@ -55,5 +66,20 @@ public class SetEvaluationDTO {
     public void setExerciseCompleted(Boolean exerciseCompleted) {
         this.exerciseCompleted = exerciseCompleted;
     }
-}
 
+    public Double getNextSetWeight() {
+        return nextSetWeight;
+    }
+
+    public void setNextSetWeight(Double nextSetWeight) {
+        this.nextSetWeight = nextSetWeight;
+    }
+
+    public Integer getNextSetReps() {
+        return nextSetReps;
+    }
+
+    public void setNextSetReps(Integer nextSetReps) {
+        this.nextSetReps = nextSetReps;
+    }
+}

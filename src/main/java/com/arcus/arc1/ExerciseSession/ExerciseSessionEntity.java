@@ -14,6 +14,9 @@ public class ExerciseSessionEntity {
 
     private Long workoutSessionId;
 
+    /** FK to exercise_library — used for substitution and muscle-group tracking */
+    private Long exerciseLibraryId;
+
     private String exerciseName;
     private Double targetWeight;
     private Integer repMin;
@@ -22,6 +25,8 @@ public class ExerciseSessionEntity {
     private String tempo;
     private Integer completedSets;
     private Boolean isCompleted;
+
+    private Long workoutExerciseTemplateId;
 
     public Long getId() {
         return id;
@@ -37,6 +42,14 @@ public class ExerciseSessionEntity {
 
     public void setWorkoutSessionId(Long workoutSessionId) {
         this.workoutSessionId = workoutSessionId;
+    }
+
+    public Long getExerciseLibraryId() {
+        return exerciseLibraryId;
+    }
+
+    public void setExerciseLibraryId(Long exerciseLibraryId) {
+        this.exerciseLibraryId = exerciseLibraryId;
     }
 
     public String getExerciseName() {
@@ -102,5 +115,12 @@ public class ExerciseSessionEntity {
     public void setIsCompleted(Boolean isCompleted) {
         this.isCompleted = isCompleted;
     }
-}
 
+    public Long getWorkoutExerciseTemplateId() {
+        return workoutExerciseTemplateId;
+    }
+
+    public void setWorkoutExerciseTemplateId(Long workoutExerciseTemplateId) {
+        this.workoutExerciseTemplateId = workoutExerciseTemplateId;
+    }
+}

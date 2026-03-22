@@ -2,6 +2,7 @@ package com.arcus.arc1.WorkoutSession;
 
 import com.arcus.arc1.dto.NextWorkoutInfoDTO;
 import com.arcus.arc1.dto.WorkoutResponseDTO;
+import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin
@@ -17,8 +18,19 @@ public class WorkoutController {
 
     @GetMapping("/generateWorkout")
     public WorkoutResponseDTO generateWorkout(@RequestParam Long userId,
-                                              @RequestParam String level){
-        return workoutGenerationService.generateWorkout(userId, level);
+                                              @RequestParam String level,
+                                              @RequestParam String goal){
+        return workoutGenerationService.generateWorkout(userId, level, goal);
+    }
+
+    @PostMapping("/generateCustom")
+    public WorkoutResponseDTO generateCustomWorkout(@RequestBody com.arcus.arc1.dto.GenerateWorkoutRequest request) {
+        return workoutGenerationService.generateCustomWorkout(request);
+    }
+
+    @PostMapping("/{sessionId}/assignWeights")
+    public List<com.arcus.arc1.dto.ExerciseDTO> assignWeights(@PathVariable Long sessionId) {
+        return workoutGenerationService.assignWeightsForSession(sessionId);
     }
 
     @GetMapping("/nextWorkoutName")

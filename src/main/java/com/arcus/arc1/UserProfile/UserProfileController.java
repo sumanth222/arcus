@@ -36,6 +36,7 @@ public class UserProfileController {
 
         return userProfileService.createUserProfile(
                 request.getUserId(),
+                request.getUsername(),
                 request.getName(),
                 request.getEmail(),
                 request.getCurrentLevel(),

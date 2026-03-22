@@ -2,7 +2,6 @@ package com.arcus.arc1.dto;
 
 public class ExerciseDTO {
 
-    private Long exerciseSessionId;
     private String exerciseName;
     private Double targetWeight;
     private Integer repMin;
@@ -10,12 +9,18 @@ public class ExerciseDTO {
     private Integer sets;
     private String tempo;
     private String tip;
+    private String muscleArea; // Optional: for future use
+    private String secondaryMuscleGroup;
+    private Long exerciseTemplateSessionID;
 
     public ExerciseDTO() {
     }
 
-    public ExerciseDTO(Long exerciseSessionId, String exerciseName, Double targetWeight, Integer repMin, Integer repMax, Integer sets, String tempo, String tip) {
-        this.exerciseSessionId = exerciseSessionId;
+
+    public ExerciseDTO(String exerciseName,
+                       Double targetWeight, Integer repMin, Integer repMax,
+                       Integer sets, String tempo, String tip, String muscleArea,
+                       String secondaryMuscleGroup, int exerciseTemplateSessionID) {
         this.exerciseName = exerciseName;
         this.targetWeight = targetWeight;
         this.repMin = repMin;
@@ -23,15 +28,10 @@ public class ExerciseDTO {
         this.sets = sets;
         this.tempo = tempo;
         this.tip = tip;
+        this.muscleArea = muscleArea;
+        this.secondaryMuscleGroup = secondaryMuscleGroup;
     }
 
-    public Long getExerciseSessionId() {
-        return exerciseSessionId;
-    }
-
-    public void setExerciseSessionId(Long exerciseSessionId) {
-        this.exerciseSessionId = exerciseSessionId;
-    }
 
     public String getExerciseName() {
         return exerciseName;
@@ -87,5 +87,29 @@ public class ExerciseDTO {
 
     public void setTip(String tip) {
         this.tip = tip;
+    }
+
+    public String getMuscleArea() {
+        return muscleArea;
+    }
+
+    public void setMuscleArea(String muscleArea) {
+        this.muscleArea = muscleArea;
+    }
+
+    public String getSecondaryMuscleGroup() {
+        return secondaryMuscleGroup;
+    }
+
+    public void setSecondaryMuscleGroup(String secondaryMuscleGroup) {
+        this.secondaryMuscleGroup = secondaryMuscleGroup;
+    }
+
+    public Long getExerciseTemplateSessionID() {
+        return exerciseTemplateSessionID;
+    }
+
+    public void setExerciseTemplateSessionID(Long exerciseTemplateSessionID) {
+        this.exerciseTemplateSessionID = exerciseTemplateSessionID;
     }
 }

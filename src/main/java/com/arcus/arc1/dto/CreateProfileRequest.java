@@ -3,6 +3,7 @@ package com.arcus.arc1.dto;
 public class CreateProfileRequest {
 
     private Long userId;
+    private String username;  // used to link UserCredentials if credentialsId not provided
     private String name;
     private String email;
     private String currentLevel;
@@ -15,6 +16,9 @@ public class CreateProfileRequest {
 
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

@@ -14,6 +14,9 @@ public class TemplateExerciseEntity {
 
     private Long templateId;
 
+    /** FK to exercise_library — the canonical exercise definition */
+    private Long exerciseLibraryId;
+
     private String exerciseName;
     private Integer sets;
     private Integer repMin;
@@ -36,6 +39,14 @@ public class TemplateExerciseEntity {
 
     public void setTemplateId(Long templateId) {
         this.templateId = templateId;
+    }
+
+    public Long getExerciseLibraryId() {
+        return exerciseLibraryId;
+    }
+
+    public void setExerciseLibraryId(Long exerciseLibraryId) {
+        this.exerciseLibraryId = exerciseLibraryId;
     }
 
     public String getExerciseName() {

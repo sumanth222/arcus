@@ -5,6 +5,7 @@ import com.arcus.arc1.ExerciseSession.ExerciseSessionEntity;
 import com.arcus.arc1.ExerciseSession.ExerciseSessionRepo;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,7 +41,7 @@ public class SetEvaluationService {
      */
     public SetEvaluationDTO evaluateSet(Long exerciseSessionId, Integer setNumber) {
         // Fetch all sets for this exercise session
-        List<SetLogEntity> allSets = setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(exerciseSessionId);
+        List<SetLogEntity> allSets = new ArrayList<>();
 
         if (allSets.isEmpty()) {
             return new SetEvaluationDTO(

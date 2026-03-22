@@ -5,6 +5,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
+import java.util.List;
+
 @Entity
 public class WorkoutTemplateEntity {
 
@@ -16,6 +18,25 @@ public class WorkoutTemplateEntity {
     private String level;
     private String goal;
     private Integer dayNumber;
+    private String muscleGroup;
+
+     public WorkoutTemplateEntity() {}
+
+     public WorkoutTemplateEntity(String name, String level, String goal, Integer dayNumber, String muscleGroups) {
+         this.name = name;
+         this.level = level;
+         this.goal = goal;
+         this.dayNumber = dayNumber;
+         this.muscleGroup = muscleGroups;
+     }
+
+     public String getMuscleGroups() {
+         return muscleGroup;
+     }
+
+     public void setMuscleGroups(String muscleGroups) {
+         this.muscleGroup = muscleGroups;
+     }
 
     public Long getId() {
         return id;

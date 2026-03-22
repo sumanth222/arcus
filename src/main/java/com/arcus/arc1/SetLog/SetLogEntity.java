@@ -12,7 +12,7 @@ public class SetLogEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long exerciseSessionId;
+    private Long workoutExerciseTemplateId;
     private Integer setNumber;
     private Double weight;
     private Integer reps;
@@ -25,12 +25,12 @@ public class SetLogEntity {
         this.id = id;
     }
 
-    public Long getExerciseSessionId() {
-        return exerciseSessionId;
+    public Long getWorkoutExerciseTemplateId() {
+        return workoutExerciseTemplateId;
     }
 
-    public void setExerciseSessionId(Long exerciseSessionId) {
-        this.exerciseSessionId = exerciseSessionId;
+    public void setWorkoutExerciseTemplateId(Long workoutExerciseTemplateId) {
+        this.workoutExerciseTemplateId = workoutExerciseTemplateId;
     }
 
     public Integer getSetNumber() {
@@ -57,4 +57,3 @@ public class SetLogEntity {
         this.reps = reps;
     }
 }
-

@@ -54,8 +54,7 @@ public class WorkoutHistoryService {
 
             for (ExerciseSessionEntity exercise : exercises) {
                 // Fetch set logs for this exercise
-                List<SetLogEntity> setLogs = setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(exercise.getId());
-
+                List<SetLogEntity> setLogs = new ArrayList<>();
                 int setsCompleted = setLogs.size();
                 double averageReps = 0.0;
                 double exerciseTotalWeight = 0.0;
@@ -157,7 +156,7 @@ public class WorkoutHistoryService {
         List<ExerciseHistoryDTO> exerciseHistory = new ArrayList<>();
 
         for (ExerciseSessionEntity exercise : exercises) {
-            List<SetLogEntity> setLogs = setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(exercise.getId());
+            List<SetLogEntity> setLogs = new ArrayList<>();
 
             int setsCompleted = setLogs.size();
             double averageReps = 0.0;

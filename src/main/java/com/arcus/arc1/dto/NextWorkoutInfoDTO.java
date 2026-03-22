@@ -1,6 +1,7 @@
 package com.arcus.arc1.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class NextWorkoutInfoDTO {
 
@@ -11,13 +12,14 @@ public class NextWorkoutInfoDTO {
     private LocalDateTime lastWorkoutDate;
     private boolean lastWorkoutCompleted;
     private Double lastWorkoutTotalWeight;
+    private List<String> muscleGroups;
 
     public NextWorkoutInfoDTO() {}
 
     public NextWorkoutInfoDTO(String nextWorkoutName, Integer nextDayNumber,
                               String lastWorkoutName, Integer lastDayNumber,
                               LocalDateTime lastWorkoutDate, boolean lastWorkoutCompleted,
-                              Double lastWorkoutTotalWeight) {
+                              Double lastWorkoutTotalWeight, List<String> muscleGroups) {
         this.nextWorkoutName = nextWorkoutName;
         this.nextDayNumber = nextDayNumber;
         this.lastWorkoutName = lastWorkoutName;
@@ -25,6 +27,7 @@ public class NextWorkoutInfoDTO {
         this.lastWorkoutDate = lastWorkoutDate;
         this.lastWorkoutCompleted = lastWorkoutCompleted;
         this.lastWorkoutTotalWeight = lastWorkoutTotalWeight;
+        this.muscleGroups = muscleGroups;
     }
 
     public String getNextWorkoutName() { return nextWorkoutName; }
@@ -47,4 +50,12 @@ public class NextWorkoutInfoDTO {
 
     public Double getLastWorkoutTotalWeight() { return lastWorkoutTotalWeight; }
     public void setLastWorkoutTotalWeight(Double lastWorkoutTotalWeight) { this.lastWorkoutTotalWeight = lastWorkoutTotalWeight; }
+
+    public List<String> getMuscleGroups() {
+        return muscleGroups;
+    }
+
+    public void setMuscleGroups(List<String> muscleGroups) {
+        this.muscleGroups = muscleGroups;
+    }
 }

@@ -2,12 +2,14 @@ package com.arcus.arc1.dto;
 
 public class SetLogDTO {
     private Long exerciseSessionId;
+    private Long workoutExerciseTemplateId;
     private Integer setNumber;
     private Double weight;
     private Integer reps;
 
-    public SetLogDTO(Long exerciseSessionId, Integer setNumber, Double weight, Integer reps) {
+    public SetLogDTO(Long exerciseSessionId, Long workoutExerciseTemplateId, Integer setNumber, Double weight, Integer reps) {
         this.exerciseSessionId = exerciseSessionId;
+        this.workoutExerciseTemplateId = workoutExerciseTemplateId;
         this.setNumber = setNumber;
         this.weight = weight;
         this.reps = reps;
@@ -19,6 +21,14 @@ public class SetLogDTO {
 
     public void setExerciseSessionId(Long exerciseSessionId) {
         this.exerciseSessionId = exerciseSessionId;
+    }
+
+    public Long getWorkoutExerciseTemplateId() {
+        return workoutExerciseTemplateId;
+    }
+
+    public void setWorkoutExerciseTemplateId(Long workoutExerciseTemplateId) {
+        this.workoutExerciseTemplateId = workoutExerciseTemplateId;
     }
 
     public Integer getSetNumber() {

@@ -12,6 +12,7 @@ import com.arcus.arc1.dto.UserProfileDTO;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,7 +45,7 @@ public class UserProfileService {
      * If userId is null (new user), auto-generates one from the saved entity's id.
      * If credentialsId is provided, links the UserCredentials to this profile.
      */
-    public UserProfileDTO createUserProfile(Long userId, String name, String email,
+    public UserProfileDTO createUserProfile(Long userId, String username, String name, String email,
                                               String level, String fitnessGoal,
                                               String workoutSplit, Integer lastWorkoutDay,
                                               Long credentialsId) {
@@ -68,12 +69,17 @@ public class UserProfileService {
         }
 
         // Link the auth credentials to this profile
+        // Try by credentialsId first, fall back to username lookup
+        UserCredentials credentials = null;
         if (credentialsId != null) {
-            UserCredentials credentials = credentialsRepo.findById(credentialsId).orElse(null);
-            if (credentials != null) {
-                credentials.setUserId(profile.getUserId());
-                credentialsRepo.save(credentials);
-            }
+            credentials = credentialsRepo.findById(credentialsId).orElse(null);
+        }
+        if (credentials == null && username != null && !username.isBlank()) {
+            credentials = credentialsRepo.findByUsername(username).orElse(null);
+        }
+        if (credentials != null) {
+            credentials.setUserId(profile.getUserId());
+            credentialsRepo.save(credentials);
         }
 
         return convertToDTO(profile);
@@ -128,7 +134,7 @@ public class UserProfileService {
                 Double weight = exercise.getTargetWeight() != null ? exercise.getTargetWeight() : 0.0;
                 Integer sets = exercise.getSets() != null ? exercise.getSets() : 0;
 
-                List<SetLogEntity> setLogs = setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(exercise.getId());
+                List<SetLogEntity> setLogs = new ArrayList<>();
                 if (!setLogs.isEmpty()) {
                     for (SetLogEntity setLog : setLogs) {
                         Integer reps = setLog.getReps() != null ? setLog.getReps() : 0;

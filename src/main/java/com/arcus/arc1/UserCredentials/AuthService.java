@@ -35,9 +35,9 @@ public class AuthService {
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         UserCredentials credentials = new UserCredentials(request.getUsername(), hashedPassword);
-        credentialsRepo.save(credentials);
+        credentials = credentialsRepo.save(credentials);
 
-        return new LoginResponse(null, request.getUsername(), true);
+        return new LoginResponse(null, credentials.getId(), request.getUsername(), true);
     }
 
     /**
@@ -56,14 +56,14 @@ public class AuthService {
 
         if (userId == null) {
             // Onboarding not done yet
-            return new LoginResponse(null, request.getUsername(), true);
+            return new LoginResponse(null, credentials.getId(), request.getUsername(), true);
         }
 
         // Look up the linked profile for the user's name
         UserProfileEntity profile = userProfileRepo.findByUserId(userId).orElse(null);
         String name = (profile != null) ? profile.getName() : request.getUsername();
 
-        return new LoginResponse(userId, name, false);
+        return new LoginResponse(userId, credentials.getId(), name, false);
     }
 
     /**

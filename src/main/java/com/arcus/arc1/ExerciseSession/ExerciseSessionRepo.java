@@ -39,7 +39,6 @@ public interface ExerciseSessionRepo
            "JOIN WorkoutSessionEntity ws ON es.workoutSessionId = ws.id " +
            "WHERE ws.userId = :userId AND es.exerciseName = :exerciseName " +
            "AND ws.id <> :excludeWorkoutSessionId " +
-           "AND EXISTS (SELECT 1 FROM SetLogEntity sl WHERE sl.exerciseSessionId = es.id) " +
            "ORDER BY ws.createdAt DESC")
     List<ExerciseSessionEntity> findRecentExercisesByUserAndName(Long userId, String exerciseName, Long excludeWorkoutSessionId);
 }

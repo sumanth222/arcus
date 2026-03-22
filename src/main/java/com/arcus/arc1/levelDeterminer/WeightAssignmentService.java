@@ -9,6 +9,7 @@ import com.arcus.arc1.WorkoutSession.WorkoutSessionRepo;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -172,7 +173,7 @@ public class WeightAssignmentService {
 
         for (ExerciseSessionEntity session : exerciseSessions) {
             // Get all set logs for this exercise session
-            List<SetLogEntity> setsLogged = setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(session.getId());
+            List<SetLogEntity> setsLogged = new ArrayList<>();
 
             System.out.println("[WEIGHT-DEBUG] Session id=" + session.getId() +
                     " ('" + session.getExerciseName() + "') → set logs found: " + setsLogged.size());

@@ -59,7 +59,7 @@ public class WorkoutProgressService {
 
         for (int i = 0; i < allExercises.size(); i++) {
             ExerciseSessionEntity exercise = allExercises.get(i);
-            int setsCompleted = (int) setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(exercise.getId()).size();
+            int setsCompleted = (int) setLogRepo.findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(exercise.getWorkoutExerciseTemplateId()).size();
 
             // If sets completed < sets planned, this is the current exercise
             if (setsCompleted < exercise.getSets()) {
@@ -74,7 +74,7 @@ public class WorkoutProgressService {
             // Return progress with last exercise as current and marked completed
             ExerciseSessionEntity lastExercise = allExercises.get(allExercises.size() - 1);
             int lastExerciseSetsCompleted = (int) setLogRepo
-                    .findByExerciseSessionIdOrderBySetNumberAsc(lastExercise.getId()).size();
+                    .findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(lastExercise.getWorkoutExerciseTemplateId()).size();
 
             return new WorkoutProgressDTO(
                     workoutSessionId,
@@ -100,7 +100,7 @@ public class WorkoutProgressService {
 
         // Get current exercise details
         int currentSetsCompleted = (int) setLogRepo
-                .findByExerciseSessionIdOrderBySetNumberAsc(currentExercise.getId()).size();
+                .findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(currentExercise.getWorkoutExerciseTemplateId()).size();
         int currentSetsRemaining = currentExercise.getSets() - currentSetsCompleted;
         double setsCompletedPercentage = (currentSetsCompleted * 100.0) / currentExercise.getSets();
 
@@ -114,7 +114,7 @@ public class WorkoutProgressService {
         int completedExercises = 0;
         for (int i = 0; i < currentExerciseIndex; i++) {
             ExerciseSessionEntity exercise = allExercises.get(i);
-            int setsCompleted = (int) setLogRepo.findByExerciseSessionIdOrderBySetNumberAsc(exercise.getId()).size();
+            int setsCompleted = (int) setLogRepo.findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(exercise.getWorkoutExerciseTemplateId()).size();
             if (setsCompleted >= exercise.getSets()) {
                 completedExercises++;
             }
@@ -142,4 +142,3 @@ public class WorkoutProgressService {
         );
     }
 }
-
