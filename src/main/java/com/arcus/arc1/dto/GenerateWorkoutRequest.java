@@ -8,7 +8,7 @@ public class GenerateWorkoutRequest {
     private String level;
     private String goal;
     private String split;
-    private Integer dayNumber;
+    private Integer lastWorkoutDay;
     private List<String> requestedMuscles;
 
     public GenerateWorkoutRequest() {}
@@ -25,8 +25,8 @@ public class GenerateWorkoutRequest {
     public String getSplit() { return split; }
     public void setSplit(String split) { this.split = split; }
 
-    public Integer getDayNumber() { return dayNumber; }
-    public void setDayNumber(Integer dayNumber) { this.dayNumber = dayNumber; }
+    public Integer getLastWorkoutDay() { return lastWorkoutDay; }
+    public void setLastWorkoutDay(Integer lastWorkoutDay) { this.lastWorkoutDay = lastWorkoutDay; }
 
     public List<String> getRequestedMuscles() { return requestedMuscles; }
     public void setRequestedMuscles(List<String> requestedMuscles) { this.requestedMuscles = requestedMuscles; }

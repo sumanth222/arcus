@@ -170,26 +170,33 @@ public class WorkoutGenerationService {
         Long userId = request.getUserId();
         String level = request.getLevel();
         String goal = request.getGoal();
-        Integer dayNumber = request.getDayNumber() != null ? request.getDayNumber() : 0;
+        Integer dayNumber = request.getLastWorkoutDay() != null ? request.getLastWorkoutDay() : 0;
         List<ExerciseDTO> result = new ArrayList<>();
         List<WorkoutExerciseTemplateEntity> templateEntities = new ArrayList<>();
         List<ExerciseLibraryEntity> allExerciseEntities = new ArrayList<>();
 
-        for(String muscleRequest : request.getRequestedMuscles()) {
+        List<String> muscles = request.getRequestedMuscles();
+
+        // ── Total exercise count by level ──────────────────────────────────────
+        // Beginner: 5  |  Intermediate / Advanced: 6
+        boolean isAdvancedOrIntermediate = "intermediate".equalsIgnoreCase(level)
+                || "advanced".equalsIgnoreCase(level);
+        int totalExercises = isAdvancedOrIntermediate ? 6 : 5;
+
+        // ── Allocate exercises per muscle group ────────────────────────────────
+        // First muscle = major (priority ~60%).  Remaining muscles split the rest.
+        int[] allocation = distributeExercises(totalExercises, muscles.size());
+
+        for (int m = 0; m < muscles.size(); m++) {
+            String muscleRequest = muscles.get(m);
+            int countForMuscle = allocation[m];
+            if (countForMuscle <= 0) continue;
+
             List<ExerciseLibraryEntity> exerciseLibraryEntities =
-                    exerciseLibraryRepo.findByMuscleGroupIgnoreCaseAndLevelIgnoreCase(
-                            muscleRequest, level);
-            if("beginner".equalsIgnoreCase(level)){
-                if(result.isEmpty()){
-                    exerciseLibraryEntities = pickRandom(exerciseLibraryEntities, 3);
-                }
-                else{
-                    exerciseLibraryEntities = pickRandom(exerciseLibraryEntities, 2);
-                }
-            }
-            else{
-                exerciseLibraryEntities = pickRandom(exerciseLibraryEntities, 3);
-            }
+                    exerciseLibraryRepo.findByMuscleGroupAndLevelContains(muscleRequest, level);
+
+            exerciseLibraryEntities = pickRandom(exerciseLibraryEntities, countForMuscle);
+
             allExerciseEntities.addAll(exerciseLibraryEntities);
             exerciseLibraryEntities.forEach(exerciseLibraryEntity -> {
                 ExerciseDTO edto = new ExerciseDTO();
@@ -199,8 +206,10 @@ public class WorkoutGenerationService {
                 edto.setSets(exerciseLibraryEntity.getSets());
                 edto.setMuscleArea(exerciseLibraryEntity.getMuscleArea());
                 edto.setSecondaryMuscleGroup(exerciseLibraryEntity.getSecondaryMuscles());
+                edto.setTip(exerciseLibraryEntity.getTip());
+                edto.setVideoUrl(exerciseLibraryEntity.getVideoUrl());
                 result.add(edto);
-                // Store in WorkoutExerciseTemplateEntity
+
                 WorkoutExerciseTemplateEntity entity = new WorkoutExerciseTemplateEntity();
                 entity.setUserId(userId != null ? userId.intValue() : null);
                 entity.setDayNumber(dayNumber);
@@ -210,9 +219,11 @@ public class WorkoutGenerationService {
                 templateEntities.add(entity);
             });
         }
+
         // Save all generated template entities
         workoutExerciseTemplateRepository.saveAll(templateEntities);
-        // Assign weights for first set of each exercise
+
+        // Assign weights for each exercise
         for (int i = 0; i < templateEntities.size(); i++) {
             WorkoutExerciseTemplateEntity template = templateEntities.get(i);
             ExerciseDTO edto = result.get(i);
@@ -221,18 +232,89 @@ public class WorkoutGenerationService {
             if (!logs.isEmpty()) {
                 weight = logs.stream().mapToDouble(SetLogEntity::getWeight).average().orElse(0.0);
             } else {
-                // Find the matching ExerciseLibraryEntity for this template
                 ExerciseLibraryEntity exLib = allExerciseEntities.get(i);
-                boolean isCompound = isCompoundExercise(exLib.getName());
-                weight = weightAssignmentService.assignBaseWeight(level, exLib.getName(), isCompound);
+                weight = resolveBaseWeight(exLib, level);
             }
             edto.setTargetWeight(weight);
         }
+
         WorkoutResponseDTO response = new WorkoutResponseDTO(123L, level, dayNumber, result);
+
+        // Create new workout session
+        WorkoutTemplateEntity template =
+                templateRepo.findByLevelAndGoalAndDayNumber(level, goal, dayNumber)
+                        .orElseThrow(() -> new RuntimeException(
+                                "No template found for level=" + level + ", goal=" + goal + ", day=" + dayNumber));
+
+        WorkoutSessionEntity session = new WorkoutSessionEntity();
+        session.setUserId(userId);
+        session.setTemplateId(template.getId());
+        session.setCreatedAt(LocalDateTime.now());
+        session.setCompleted(false);
+        workoutSessionRepo.save(session);
+
         return response;
     }
 
-    // small helper to pick up to 'n' random elements preserving randomness
+    /**
+     * Distributes {@code total} exercises across {@code numGroups} muscle groups,
+     * giving priority to the first (major) group.
+     *
+     * Rules:
+     *  - Major group gets ⌈total × 0.6⌉ exercises (at least 2 if possible).
+     *  - Every minor group gets at least 1 exercise.
+     *  - If total is too small to give major its share AND give each minor at least 1,
+     *    major is reduced so every minor still gets 1.
+     *
+     * Examples:
+     *  total=5, groups=1  → [5]
+     *  total=5, groups=2  → [3, 2]      (chest + triceps, beginner)
+     *  total=6, groups=2  → [4, 2]      (chest + triceps, intermediate)
+     *  total=5, groups=3  → [3, 1, 1]
+     *  total=6, groups=3  → [4, 1, 1]
+     */
+    private int[] distributeExercises(int total, int numGroups) {
+        if (numGroups <= 0) return new int[0];
+        int[] alloc = new int[numGroups];
+        if (numGroups == 1) {
+            alloc[0] = total;
+            return alloc;
+        }
+        int minorGroups = numGroups - 1;
+        // Major gets ~60%, but ensure each minor muscle gets at least 1
+        int major = (int) Math.ceil(total * 0.6);
+        if (major + minorGroups > total) {
+            major = total - minorGroups; // shrink major so every minor gets ≥1
+        }
+        alloc[0] = Math.max(1, major);
+        int remaining = total - alloc[0];
+        int basePerMinor = remaining / minorGroups;
+        int extras       = remaining % minorGroups;
+        for (int i = 1; i < numGroups; i++) {
+            alloc[i] = basePerMinor + (i <= extras ? 1 : 0);
+        }
+        return alloc;
+    }
+
+    /**
+     * Returns the pre-configured base weight for an exercise based on the user's level.
+     * Uses the beginner_weight / intermediate_weight / advanced_weight columns from
+     * exercise_library.  Falls back to 10 kg if the column is null.
+     */
+    private double resolveBaseWeight(ExerciseLibraryEntity exLib, String level) {
+        if (exLib == null) return 10.0;
+        String lvl = level != null ? level.toLowerCase() : "beginner";
+        Double weight;
+        if (lvl.contains("advanced")) {
+            weight = exLib.getAdvancedWeight();
+        } else if (lvl.contains("intermediate")) {
+            weight = exLib.getIntermediateWeight();
+        } else {
+            weight = exLib.getBeginnerWeight();
+        }
+        return (weight != null && weight > 0) ? weight : 10.0;
+    }
+
     private <T> List<T> pickRandom(List<T> source, int n) {
         if (source == null || source.isEmpty() || n <= 0) return java.util.Collections.emptyList();
         // Stream.toList() (and some other factory methods) may return an immutable list.
@@ -454,11 +536,41 @@ public class WorkoutGenerationService {
             }
         }
 
+        // Also fetch the previous occurrence of the same template (if any) to compute weight change
+        Double previousWorkoutTotalWeight = null;
+        Double lastWorkoutWeightChange = null;
+        if (lastSession != null && lastSession.getTemplateId() != null) {
+            // Fetch at most two entries (most recent first) to minimize DB work
+            List<WorkoutSessionEntity> sameTemplateSessions =
+                    workoutSessionRepo.findTop2ByUserIdAndTemplateIdAndCompletedTrueOrderByCreatedAtDesc(
+                            userId, lastSession.getTemplateId());
+
+            if (sameTemplateSessions != null && sameTemplateSessions.size() >= 2) {
+                // index 0 is the most recent (lastSession), index 1 is the previous occurrence
+                WorkoutSessionEntity previous = sameTemplateSessions.get(1);
+                previousWorkoutTotalWeight = previous.getTotalWeight();
+                if (lastWorkoutTotalWeight != null && previousWorkoutTotalWeight != null) {
+                    lastWorkoutWeightChange = lastWorkoutTotalWeight - previousWorkoutTotalWeight;
+                }
+            }
+        }
+
+        // Compute percent change safely: (last - prev) / prev * 100
+        Double lastWorkoutWeightChangePercent = null;
+        if (lastWorkoutWeightChange != null && previousWorkoutTotalWeight != null && previousWorkoutTotalWeight != 0.0) {
+            double raw = (lastWorkoutWeightChange / previousWorkoutTotalWeight) * 100.0;
+            // round to 1 decimal place for UI friendliness
+            lastWorkoutWeightChangePercent = Math.round(raw * 10.0) / 10.0;
+        }
+
         return new NextWorkoutInfoDTO(
                 nextTemplate.getName(), nextDay,
                 lastWorkoutName, lastDayNumber,
                 lastWorkoutDate, lastWorkoutCompleted,
                 lastWorkoutTotalWeight,
+                previousWorkoutTotalWeight,
+                lastWorkoutWeightChange,
+                lastWorkoutWeightChangePercent,
                 List.of(nextTemplate.getMuscleGroups().split(","))
         );
     }
@@ -488,7 +600,7 @@ public class WorkoutGenerationService {
         return false;
     }
 
-    void finishWorkout(Long userId, double totalWeight){
+    public void finishWorkout(Long userId, double totalWeight){
         // Update Workout session entity with status and total weight.
         WorkoutSessionEntity workoutSessionEntity =
                 workoutSessionRepo.findTopByUserIdAndCompletedFalseOrderByCreatedAtDesc((long) userId)

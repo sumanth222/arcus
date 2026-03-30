@@ -17,4 +17,16 @@ public interface WorkoutSessionRepo
     Optional<WorkoutSessionEntity> findTopByUserIdAndCompletedTrueOrderByCreatedAtDesc(Long userId);
 
     Optional<WorkoutSessionEntity> findTopByUserIdAndCompletedFalseOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * All completed workout sessions for a user for a specific template, most-recent-first.
+     * Used to compare total weights between the last two occurrences of the same template.
+     */
+    List<WorkoutSessionEntity> findByUserIdAndTemplateIdAndCompletedTrueOrderByCreatedAtDesc(Long userId, Long templateId);
+
+    /**
+     * Fetch at most two most-recent completed sessions for a user and template.
+     * This limits DB work when we only need the last and the previous occurrence.
+     */
+    List<WorkoutSessionEntity> findTop2ByUserIdAndTemplateIdAndCompletedTrueOrderByCreatedAtDesc(Long userId, Long templateId);
 }

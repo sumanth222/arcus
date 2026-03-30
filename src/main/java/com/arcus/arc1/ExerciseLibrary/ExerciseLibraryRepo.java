@@ -1,6 +1,8 @@
 package com.arcus.arc1.ExerciseLibrary;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -37,6 +39,33 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
     List<ExerciseLibraryEntity> findByMuscleGroupIgnoreCaseAndMuscleAreaIgnoreCaseAndCategoryIgnoreCaseAndEquipmentNotInAndIdNot(
             String muscleGroup, String muscleArea, String category, List<String> unavailableEquipment, Long excludeId);
 
+    /**
+     * Fetch exercises for a muscle group where the comma-separated 'level' field contains the user's level.
+     * e.g. level="beginner,intermediate" will match a user with level="beginner".
+     */
+    @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
+            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ','))",
+            nativeQuery = true)
+    List<ExerciseLibraryEntity> findByMuscleGroupAndLevelContains(
+            @Param("muscleGroup") String muscleGroup,
+            @Param("level") String level
+    );
+
+    /**
+     * Fetch exercises for a muscle group and list of muscle areas where the comma-separated 'level'
+     * field contains the user's level.
+     */
+    @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
+            "AND UPPER(muscle_area) IN (:muscleAreas) " +
+            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ','))",
+            nativeQuery = true)
+    List<ExerciseLibraryEntity> findByMuscleGroupAndMuscleAreaInAndLevelContains(
+            @Param("muscleGroup") String muscleGroup,
+            @Param("muscleAreas") List<String> muscleAreas,
+            @Param("level") String level
+    );
+
+    // Kept for backward-compatibility but prefer the native-query variants above
     List<ExerciseLibraryEntity> findByMuscleGroupIgnoreCaseAndMuscleAreaInAndLevelIgnoreCase(
             String muscleGroup, List<String> muscleArea, String level
     );

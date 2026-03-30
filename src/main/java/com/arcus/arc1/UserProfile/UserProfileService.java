@@ -214,4 +214,45 @@ public class UserProfileService {
 
         return completeness;
     }
+
+    /**
+     * Increments the lastWorkoutDay for the user and returns updated profile.
+     */
+    public UserProfileDTO completeWorkoutDay(Long userId ,Long dayNum) {
+        UserProfileEntity profile = userProfileRepo.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("User profile not found for userId: " + userId));
+        // Set the last workout day to the provided day number
+        int day = dayNum != null ? dayNum.intValue() : 0;
+        profile.setLastWorkoutDay(day);
+
+        // Try to incorporate totals from the most recent completed workout session
+        try {
+            WorkoutSessionEntity lastCompleted = workoutSessionRepo
+                    .findTopByUserIdAndCompletedTrueOrderByCreatedAtDesc(userId)
+                    .orElse(null);
+
+            if (lastCompleted != null) {
+                LocalDateTime lastSessionDate = lastCompleted.getCreatedAt();
+                double sessionTotalWeight = lastCompleted.getTotalWeight();
+
+                // If profile has no lastWorkoutDate or the last completed session is newer than
+                // the profile's recorded lastWorkoutDate, include its totals to avoid double counting.
+                if (profile.getLastWorkoutDate() == null || profile.getLastWorkoutDate().isBefore(lastSessionDate)) {
+                    int currentWorkouts = profile.getTotalWorkouts() != null ? profile.getTotalWorkouts() : 0;
+                    double currentTotalWeight = profile.getTotalWeightLifted() != null ? profile.getTotalWeightLifted() : 0.0;
+
+                    profile.setTotalWorkouts(currentWorkouts + 1);
+                    profile.setTotalWeightLifted(currentTotalWeight + sessionTotalWeight);
+                    profile.setLastWorkoutDate(lastSessionDate);
+                }
+            }
+        } catch (Exception e) {
+            // Log and continue — we don't want marking the day to fail due to profile update issues
+            System.err.println("Error while merging last completed workout into profile: " + e.getMessage());
+        }
+
+        profile.setLastUpdatedAt(LocalDateTime.now());
+        profile = userProfileRepo.save(profile);
+        return convertToDTO(profile);
+    }
 }

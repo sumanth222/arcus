@@ -9,6 +9,7 @@ public class ExerciseDTO {
     private Integer sets;
     private String tempo;
     private String tip;
+    private String videoUrl;
     private String muscleArea; // Optional: for future use
     private String secondaryMuscleGroup;
     private Long exerciseTemplateSessionID;
@@ -87,6 +88,14 @@ public class ExerciseDTO {
 
     public void setTip(String tip) {
         this.tip = tip;
+    }
+
+    public String getVideoUrl() {
+        return videoUrl;
+    }
+
+    public void setVideoUrl(String videoUrl) {
+        this.videoUrl = videoUrl;
     }
 
     public String getMuscleArea() {

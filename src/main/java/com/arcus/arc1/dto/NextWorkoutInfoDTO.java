@@ -12,6 +12,9 @@ public class NextWorkoutInfoDTO {
     private LocalDateTime lastWorkoutDate;
     private boolean lastWorkoutCompleted;
     private Double lastWorkoutTotalWeight;
+    private Double previousWorkoutTotalWeight;
+    private Double lastWorkoutWeightChange;
+    private Double lastWorkoutWeightChangePercent;
     private List<String> muscleGroups;
 
     public NextWorkoutInfoDTO() {}
@@ -19,7 +22,9 @@ public class NextWorkoutInfoDTO {
     public NextWorkoutInfoDTO(String nextWorkoutName, Integer nextDayNumber,
                               String lastWorkoutName, Integer lastDayNumber,
                               LocalDateTime lastWorkoutDate, boolean lastWorkoutCompleted,
-                              Double lastWorkoutTotalWeight, List<String> muscleGroups) {
+                              Double lastWorkoutTotalWeight, Double previousWorkoutTotalWeight,
+                              Double lastWorkoutWeightChange, Double lastWorkoutWeightChangePercent,
+                              List<String> muscleGroups) {
         this.nextWorkoutName = nextWorkoutName;
         this.nextDayNumber = nextDayNumber;
         this.lastWorkoutName = lastWorkoutName;
@@ -27,6 +32,9 @@ public class NextWorkoutInfoDTO {
         this.lastWorkoutDate = lastWorkoutDate;
         this.lastWorkoutCompleted = lastWorkoutCompleted;
         this.lastWorkoutTotalWeight = lastWorkoutTotalWeight;
+        this.previousWorkoutTotalWeight = previousWorkoutTotalWeight;
+        this.lastWorkoutWeightChange = lastWorkoutWeightChange;
+        this.lastWorkoutWeightChangePercent = lastWorkoutWeightChangePercent;
         this.muscleGroups = muscleGroups;
     }
 
@@ -50,6 +58,15 @@ public class NextWorkoutInfoDTO {
 
     public Double getLastWorkoutTotalWeight() { return lastWorkoutTotalWeight; }
     public void setLastWorkoutTotalWeight(Double lastWorkoutTotalWeight) { this.lastWorkoutTotalWeight = lastWorkoutTotalWeight; }
+
+    public Double getPreviousWorkoutTotalWeight() { return previousWorkoutTotalWeight; }
+    public void setPreviousWorkoutTotalWeight(Double previousWorkoutTotalWeight) { this.previousWorkoutTotalWeight = previousWorkoutTotalWeight; }
+
+    public Double getLastWorkoutWeightChange() { return lastWorkoutWeightChange; }
+    public void setLastWorkoutWeightChange(Double lastWorkoutWeightChange) { this.lastWorkoutWeightChange = lastWorkoutWeightChange; }
+
+    public Double getLastWorkoutWeightChangePercent() { return lastWorkoutWeightChangePercent; }
+    public void setLastWorkoutWeightChangePercent(Double lastWorkoutWeightChangePercent) { this.lastWorkoutWeightChangePercent = lastWorkoutWeightChangePercent; }
 
     public List<String> getMuscleGroups() {
         return muscleGroups;

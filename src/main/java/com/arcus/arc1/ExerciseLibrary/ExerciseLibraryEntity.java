@@ -49,6 +49,22 @@ public class ExerciseLibraryEntity {
     @Column(length = 500)
     private String tip;
 
+    /** URL to a demonstration video for this exercise */
+    @Column(name = "video_url", length = 1000)
+    private String videoUrl;
+
+    /** Base starting weight (kg) for a beginner on this exercise */
+    @Column(name = "beginner_weight")
+    private Double beginnerWeight;
+
+    /** Base starting weight (kg) for an intermediate athlete on this exercise */
+    @Column(name = "intermediate_weight")
+    private Double intermediateWeight;
+
+    /** Base starting weight (kg) for an advanced athlete on this exercise */
+    @Column(name = "advanced_weight")
+    private Double advancedWeight;
+
     @Column
     private int repMin;
 
@@ -61,8 +77,9 @@ public class ExerciseLibraryEntity {
     public ExerciseLibraryEntity() {}
 
     public ExerciseLibraryEntity(Long id, String name, String muscleGroup, String secondaryMuscles, String muscleArea,
-                                 String level, String equipment, String category, String tip, int repMin, int repMax,
-                                 int sets) {
+                                 String level, String equipment, String category, String tip, String videoUrl,
+                                 Double beginnerWeight, Double intermediateWeight, Double advancedWeight,
+                                 int repMin, int repMax, int sets) {
         this.id = id;
         this.name = name;
         this.muscleGroup = muscleGroup;
@@ -72,6 +89,10 @@ public class ExerciseLibraryEntity {
         this.equipment = equipment;
         this.category = category;
         this.tip = tip;
+        this.videoUrl = videoUrl;
+        this.beginnerWeight = beginnerWeight;
+        this.intermediateWeight = intermediateWeight;
+        this.advancedWeight = advancedWeight;
         this.repMin = repMin;
         this.repMax = repMax;
         this.sets = sets;
@@ -103,6 +124,18 @@ public class ExerciseLibraryEntity {
 
     public String getTip() { return tip; }
     public void setTip(String tip) { this.tip = tip; }
+
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
+
+    public Double getBeginnerWeight() { return beginnerWeight; }
+    public void setBeginnerWeight(Double beginnerWeight) { this.beginnerWeight = beginnerWeight; }
+
+    public Double getIntermediateWeight() { return intermediateWeight; }
+    public void setIntermediateWeight(Double intermediateWeight) { this.intermediateWeight = intermediateWeight; }
+
+    public Double getAdvancedWeight() { return advancedWeight; }
+    public void setAdvancedWeight(Double advancedWeight) { this.advancedWeight = advancedWeight; }
 
     public int getRepMin() {
         return repMin;
