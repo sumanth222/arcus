@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Service for generating workouts with intelligent weight assignment.
@@ -87,31 +88,43 @@ public class WorkoutGenerationService {
 
         List<ExerciseDTO> exerciseDTOList = new ArrayList<>();
 
-
         // Determine which day to generate based on user's last completed workout day
-        int nextDay = determineNextDay(userId, level, goal);
+        UserProfileEntity profileForSplit = userProfileRepo.findByUserId(userId).orElse(null);
+        String split = (profileForSplit != null && profileForSplit.getWorkoutSplit() != null)
+                ? profileForSplit.getWorkoutSplit() : null;
 
-        // Fetch template for this level and day
-        WorkoutTemplateEntity template =
-                templateRepo.findByLevelAndGoalAndDayNumber(
-                        level,
-                        goal,
-                        nextDay
-                ).orElseThrow(() -> new RuntimeException(
-                        "No template found for level=" + level + ", goal=" + goal + ", day=" + nextDay));
+        int nextDay = determineNextDay(userId, level, goal, split);
 
-        // Create new workout session
-        WorkoutSessionEntity session = new WorkoutSessionEntity();
-        session.setUserId(userId);
-        session.setTemplateId(template.getId());
-        session.setCreatedAt(LocalDateTime.now());
-        session.setCompleted(false);
+        // Fetch template for this level, goal, split and day
+        WorkoutTemplateEntity template = resolveTemplate(level, goal, split, nextDay);
 
-        session = workoutSessionRepo.save(session);
+        // Reuse existing incomplete session for this template if one exists
+        WorkoutSessionEntity session = workoutSessionRepo
+                .findTop1ByUserIdAndTemplateIdAndCompletedFalseOrderByCreatedAtDesc(userId, template.getId())
+                .orElse(null);
 
-        // Fetch exercises from template
+        boolean isExistingSession = (session != null);
+
+        if (!isExistingSession) {
+            session = new WorkoutSessionEntity();
+            session.setUserId(userId);
+            session.setTemplateId(template.getId());
+            session.setCreatedAt(LocalDateTime.now());
+            session.setCompleted(false);
+            session = workoutSessionRepo.save(session);
+        } else {
+            // Reuse the session entity but wipe its old exercise sessions so exercises
+            // are always freshly generated (e.g. split or muscle group may have changed)
+            List<ExerciseSessionEntity> stale = exerciseSessionRepo.findByWorkoutSessionId(session.getId());
+            if (!stale.isEmpty()) {
+                exerciseSessionRepo.deleteAll(stale);
+            }
+        }
+
+        // Fetch exercises from template (needed for tips and defaults)
         List<TemplateExerciseEntity> exercises =
                 exerciseRepo.findByTemplateIdOrderByOrderIndex(template.getId());
+
 
         // Create exercise sessions with intelligent weight assignment
         int totalSets = 0;
@@ -165,12 +178,37 @@ public class WorkoutGenerationService {
      * Generates a custom workout based on explicit muscle requests.
      * Picks exercises by muscle area order and saves exercise sessions WITHOUT weights.
      * Weights will be assigned later when the user starts the workout or via existing dynamic logic.
+     * If an incomplete session with the same template already exists, it is reused.
      */
     public WorkoutResponseDTO generateCustomWorkout(com.arcus.arc1.dto.GenerateWorkoutRequest request) {
         Long userId = request.getUserId();
         String level = request.getLevel();
         String goal = request.getGoal();
+        String split = request.getSplit();
         Integer dayNumber = request.getLastWorkoutDay() != null ? request.getLastWorkoutDay() : 0;
+
+        // ── Resolve template first so we can check for an existing session ────
+        WorkoutTemplateEntity workoutTemplate = resolveTemplate(level, goal, split, dayNumber);
+
+        // ── Reuse existing incomplete session if one exists ────────────────────
+        WorkoutSessionEntity session = workoutSessionRepo
+                .findTop1ByUserIdAndTemplateIdAndCompletedFalseOrderByCreatedAtDesc(userId, workoutTemplate.getId())
+                .orElse(null);
+
+        Long existingSessionId = session != null ? session.getId() : null;
+
+        if (existingSessionId != null) {
+            // Wipe stale template entities for this user/day so exercises are always
+            // freshly picked (split or muscle-group may have changed since last generation)
+            List<WorkoutExerciseTemplateEntity> stale =
+                    workoutExerciseTemplateRepository.findByUserIdAndDayNumberOrderByCreatedAtDesc(
+                            userId != null ? userId.intValue() : null, dayNumber);
+            if (!stale.isEmpty()) {
+                workoutExerciseTemplateRepository.deleteAll(stale);
+            }
+        }
+
+        // ── Always generate fresh exercises ───────────────────────────────────
         List<ExerciseDTO> result = new ArrayList<>();
         List<WorkoutExerciseTemplateEntity> templateEntities = new ArrayList<>();
         List<ExerciseLibraryEntity> allExerciseEntities = new ArrayList<>();
@@ -178,13 +216,11 @@ public class WorkoutGenerationService {
         List<String> muscles = request.getRequestedMuscles();
 
         // ── Total exercise count by level ──────────────────────────────────────
-        // Beginner: 5  |  Intermediate / Advanced: 6
         boolean isAdvancedOrIntermediate = "intermediate".equalsIgnoreCase(level)
                 || "advanced".equalsIgnoreCase(level);
         int totalExercises = isAdvancedOrIntermediate ? 6 : 5;
 
         // ── Allocate exercises per muscle group ────────────────────────────────
-        // First muscle = major (priority ~60%).  Remaining muscles split the rest.
         int[] allocation = distributeExercises(totalExercises, muscles.size());
 
         for (int m = 0; m < muscles.size(); m++) {
@@ -238,22 +274,28 @@ public class WorkoutGenerationService {
             edto.setTargetWeight(weight);
         }
 
-        WorkoutResponseDTO response = new WorkoutResponseDTO(123L, level, dayNumber, result);
+        // Reuse existing session or create a new one
+        WorkoutSessionEntity finalSession;
+        if (existingSessionId != null) {
+            finalSession = workoutSessionRepo.findById(existingSessionId)
+                    .orElseGet(() -> {
+                        WorkoutSessionEntity s = new WorkoutSessionEntity();
+                        s.setUserId(userId);
+                        s.setTemplateId(workoutTemplate.getId());
+                        s.setCreatedAt(LocalDateTime.now());
+                        s.setCompleted(false);
+                        return workoutSessionRepo.save(s);
+                    });
+        } else {
+            finalSession = new WorkoutSessionEntity();
+            finalSession.setUserId(userId);
+            finalSession.setTemplateId(workoutTemplate.getId());
+            finalSession.setCreatedAt(LocalDateTime.now());
+            finalSession.setCompleted(false);
+            finalSession = workoutSessionRepo.save(finalSession);
+        }
 
-        // Create new workout session
-        WorkoutTemplateEntity template =
-                templateRepo.findByLevelAndGoalAndDayNumber(level, goal, dayNumber)
-                        .orElseThrow(() -> new RuntimeException(
-                                "No template found for level=" + level + ", goal=" + goal + ", day=" + dayNumber));
-
-        WorkoutSessionEntity session = new WorkoutSessionEntity();
-        session.setUserId(userId);
-        session.setTemplateId(template.getId());
-        session.setCreatedAt(LocalDateTime.now());
-        session.setCompleted(false);
-        workoutSessionRepo.save(session);
-
-        return response;
+        return new WorkoutResponseDTO(finalSession.getId(), level, dayNumber, result);
     }
 
     /**
@@ -273,6 +315,24 @@ public class WorkoutGenerationService {
      *  total=5, groups=3  → [3, 1, 1]
      *  total=6, groups=3  → [4, 1, 1]
      */
+    /**
+     * Resolves a WorkoutTemplateEntity using goal + day, optionally scoped to a split.
+     * Level is intentionally excluded — for a given split and day the template is the
+     * same regardless of whether the user is a beginner or advanced.
+     */
+    private WorkoutTemplateEntity resolveTemplate(String level, String goal, String split, int dayNumber) {
+        if (split != null && !split.isBlank()) {
+            Optional<WorkoutTemplateEntity> bySplitAndDay =
+                    templateRepo.findByGoalAndSplitAndDayNumber(goal, split, dayNumber);
+            if (bySplitAndDay.isPresent()) return bySplitAndDay.get();
+        }
+        return templateRepo.findByGoalAndDayNumber(goal, dayNumber)
+                .orElseThrow(() -> new RuntimeException(
+                        "No template found for goal=" + goal
+                                + (split != null && !split.isBlank() ? ", split=" + split : "")
+                                + ", day=" + dayNumber));
+    }
+
     private int[] distributeExercises(int total, int numGroups) {
         if (numGroups <= 0) return new int[0];
         int[] alloc = new int[numGroups];
@@ -336,9 +396,15 @@ public class WorkoutGenerationService {
      * @param goal   User's fitness goal
      * @return The next day number to generate
      */
-    private int determineNextDay(Long userId, String level, String goal) {
-        // Find max day number for this level and goal
-        int maxDay = templateRepo.findMaxDayNumberByLevelAndGoal(level, goal).orElse(1);
+    private int determineNextDay(Long userId, String level, String goal, String split) {
+        // Max day is determined by goal + split only — level doesn't change the cycle length
+        int maxDay;
+        if (split != null && !split.isBlank()) {
+            maxDay = templateRepo.findMaxDayNumberByGoalAndSplit(goal, split)
+                    .orElse(templateRepo.findMaxDayNumberByGoal(goal).orElse(1));
+        } else {
+            maxDay = templateRepo.findMaxDayNumberByGoal(goal).orElse(1);
+        }
 
         // Look up the user's last completed workout day from their profile
         UserProfileEntity profile = userProfileRepo.findByUserId(userId).orElse(null);
@@ -504,12 +570,16 @@ public class WorkoutGenerationService {
      * @return NextWorkoutInfoDTO with next and last workout details
      */
     public NextWorkoutInfoDTO getNextWorkoutInfo(Long userId, String level) {
-        String goal = "muscle_gain";
-        int nextDay = determineNextDay(userId, level, goal);
+        // Resolve goal and split from the user's profile instead of hardcoding
+        UserProfileEntity userProfile = userProfileRepo.findByUserId(userId).orElse(null);
+        String goal  = (userProfile != null && userProfile.getFitnessGoal()  != null)
+                ? userProfile.getFitnessGoal()  : "muscle_gain";
+        String split = (userProfile != null && userProfile.getWorkoutSplit() != null)
+                ? userProfile.getWorkoutSplit() : null;
 
-        WorkoutTemplateEntity nextTemplate = templateRepo.findByLevelAndGoalAndDayNumber(level, goal, nextDay)
-                .orElseThrow(() -> new RuntimeException(
-                        "No template found for level=" + level + ", goal=" + goal + ", day=" + nextDay));
+        int nextDay = determineNextDay(userId, level, goal, split);
+
+        WorkoutTemplateEntity nextTemplate = resolveTemplate(level, goal, split, nextDay);
 
         // Look up the user's most recent COMPLETED workout session for last workout details
         String lastWorkoutName = null;
@@ -602,9 +672,14 @@ public class WorkoutGenerationService {
 
     public void finishWorkout(Long userId, double totalWeight){
         // Update Workout session entity with status and total weight.
+        // If no active session exists (e.g. rest day), silently skip.
         WorkoutSessionEntity workoutSessionEntity =
                 workoutSessionRepo.findTopByUserIdAndCompletedFalseOrderByCreatedAtDesc((long) userId)
-                .orElseThrow(() -> new RuntimeException("No active workout session found for userId: " + userId));
+                .orElse(null);
+        if (workoutSessionEntity == null) {
+            // No active workout session — expected on a rest day, nothing to finish.
+            return;
+        }
         workoutSessionEntity.setCompleted(true);
         workoutSessionEntity.setTotalWeight(totalWeight);
         workoutSessionRepo.save(workoutSessionEntity);

@@ -25,43 +25,71 @@ public class AuthService {
     }
 
     /**
-     * Registers a new user with username and password.
+     * Registers a new user with username, email, and password.
+     * Email is required and must be a valid format.
      * Profile is not created yet — userId remains null until onboarding.
      */
     public LoginResponse register(LoginRequest request) {
+        // Validate email is present and looks valid
+        String email = request.getEmail();
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required for registration");
+        }
+        if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
+        }
+
         if (credentialsRepo.existsByUsername(request.getUsername())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken");
+        }
+        if (credentialsRepo.existsByEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
         }
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
-        UserCredentials credentials = new UserCredentials(request.getUsername(), hashedPassword);
+        UserCredentials credentials = new UserCredentials(request.getUsername(), hashedPassword, email);
         credentials = credentialsRepo.save(credentials);
 
         return new LoginResponse(null, credentials.getId(), request.getUsername(), true);
     }
 
     /**
-     * Logs in a user by verifying username and password.
+     * Logs in a user by verifying password.
+     * Accepts either username or email to identify the account.
      * Returns profile info if onboarding is complete, otherwise flags as new user.
      */
     public LoginResponse login(LoginRequest request) {
-        UserCredentials credentials = credentialsRepo.findByUsername(request.getUsername())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
+        // Resolve credentials by username or email — whichever is provided
+        UserCredentials credentials = null;
+
+        String username = request.getUsername();
+        String email = request.getEmail();
+
+        if (username != null && !username.isBlank()) {
+            credentials = credentialsRepo.findByUsername(username).orElse(null);
+        }
+        if (credentials == null && email != null && !email.isBlank()) {
+            credentials = credentialsRepo.findByEmail(email).orElse(null);
+        }
+
+        if (credentials == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password");
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), credentials.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password");
         }
 
         Long userId = credentials.getUserId();
 
         if (userId == null) {
             // Onboarding not done yet
-            return new LoginResponse(null, credentials.getId(), request.getUsername(), true);
+            return new LoginResponse(null, credentials.getId(), credentials.getUsername(), true);
         }
 
-        // Look up the linked profile for the user's name
+        // Look up the linked profile for the user's display name
         UserProfileEntity profile = userProfileRepo.findByUserId(userId).orElse(null);
-        String name = (profile != null) ? profile.getName() : request.getUsername();
+        String name = (profile != null) ? profile.getName() : credentials.getUsername();
 
         return new LoginResponse(userId, credentials.getId(), name, false);
     }

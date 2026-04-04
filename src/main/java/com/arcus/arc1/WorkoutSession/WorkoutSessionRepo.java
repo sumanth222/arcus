@@ -29,4 +29,11 @@ public interface WorkoutSessionRepo
      * This limits DB work when we only need the last and the previous occurrence.
      */
     List<WorkoutSessionEntity> findTop2ByUserIdAndTemplateIdAndCompletedTrueOrderByCreatedAtDesc(Long userId, Long templateId);
+
+    /**
+     * Find an existing incomplete (not-yet-finished) session for a specific user and template.
+     * Returns the most recent one to avoid crashing when stale duplicate sessions exist in the DB.
+     * Used to avoid creating duplicate sessions when the user re-hits generate workout.
+     */
+    Optional<WorkoutSessionEntity> findTop1ByUserIdAndTemplateIdAndCompletedFalseOrderByCreatedAtDesc(Long userId, Long templateId);
 }

@@ -1,6 +1,5 @@
 package com.arcus.arc1.UserProfile;
 
-import com.arcus.arc1.WorkoutSession.WorkoutGenerationService;
 import com.arcus.arc1.dto.CreateProfileRequest;
 import com.arcus.arc1.dto.UserProfileDTO;
 import org.springframework.web.bind.annotation.*;
@@ -21,11 +20,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
-    private final WorkoutGenerationService workoutGenerationService;
 
-    public UserProfileController(UserProfileService userProfileService, WorkoutGenerationService workoutGenerationService) {
+    public UserProfileController(UserProfileService userProfileService) {
         this.userProfileService = userProfileService;
-        this.workoutGenerationService = workoutGenerationService;
     }
 
     /**
@@ -114,7 +111,6 @@ public class UserProfileController {
      */
     @PostMapping("/{userId}/{dayNum}/complete-day")
     public UserProfileDTO completeWorkoutDay(@PathVariable Long userId, @PathVariable Long dayNum) {
-        workoutGenerationService.finishWorkout(userId, 0.0);
         return userProfileService.completeWorkoutDay(userId, dayNum);
     }
 }

@@ -20,6 +20,9 @@ public class UserCredentials {
     @Column(nullable = true)
     private Long userId;
 
+    @Column(nullable = true)
+    private String email;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -28,6 +31,13 @@ public class UserCredentials {
     public UserCredentials(String username, String passwordHash) {
         this.username = username;
         this.passwordHash = passwordHash;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public UserCredentials(String username, String passwordHash, String email) {
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.email = email;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -61,6 +71,14 @@ public class UserCredentials {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public LocalDateTime getCreatedAt() {

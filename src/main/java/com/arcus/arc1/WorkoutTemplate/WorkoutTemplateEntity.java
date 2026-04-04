@@ -17,6 +17,7 @@ public class WorkoutTemplateEntity {
     private String name;
     private String level;
     private String goal;
+    private String split;
     private Integer dayNumber;
     private String muscleGroup;
 
@@ -72,6 +73,14 @@ public class WorkoutTemplateEntity {
 
     public void setGoal(String goal) {
         this.goal = goal;
+    }
+
+    public String getSplit() {
+        return split;
+    }
+
+    public void setSplit(String split) {
+        this.split = split;
     }
 
     public void setDayNumber(Integer dayNumber) {
