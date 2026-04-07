@@ -11,6 +11,8 @@ public class CreateProfileRequest {
     private String workoutSplit;
     private Integer lastWorkoutDay;
     private Long credentialsId;
+    private Double weightKg;
+    private Double heightCm;
 
     public CreateProfileRequest() {}
 
@@ -40,5 +42,11 @@ public class CreateProfileRequest {
 
     public Long getCredentialsId() { return credentialsId; }
     public void setCredentialsId(Long credentialsId) { this.credentialsId = credentialsId; }
+
+    public Double getWeightKg() { return weightKg; }
+    public void setWeightKg(Double weightKg) { this.weightKg = weightKg; }
+
+    public Double getHeightCm() { return heightCm; }
+    public void setHeightCm(Double heightCm) { this.heightCm = heightCm; }
 }
 

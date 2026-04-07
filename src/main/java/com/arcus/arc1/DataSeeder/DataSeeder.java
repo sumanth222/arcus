@@ -2,6 +2,8 @@ package com.arcus.arc1.DataSeeder;
 
 import com.arcus.arc1.ExerciseLibrary.ExerciseLibraryEntity;
 import com.arcus.arc1.ExerciseLibrary.ExerciseLibraryRepo;
+import com.arcus.arc1.Nutrition.FoodItemEntity;
+import com.arcus.arc1.Nutrition.FoodItemRepo;
 import com.arcus.arc1.TemplateExcercise.TemplateExerciseEntity;
 import com.arcus.arc1.TemplateExcercise.TemplateExerciseRepo;
 import com.arcus.arc1.WorkoutTemplate.WorkoutTemplateEntity;
@@ -75,6 +77,66 @@ public class DataSeeder {
             addExercise(exerciseRepo, armDay.getId(), lib, "Tricep Pushdown",       3, 10, 15, "2-1-2", 3);
             addExercise(exerciseRepo, armDay.getId(), lib, "Skull Crusher",         3, 8,  12, "3-1-1", 4);
             addExercise(exerciseRepo, armDay.getId(), lib, "Cable Curl",            3, 12, 15, "2-1-2", 5);
+        };
+    }
+
+    // ─── Food Item Seeder ─────────────────────────────────────────────────────
+
+    @Bean
+    CommandLineRunner seedFoodItems(FoodItemRepo foodItemRepo) {
+        return args -> {
+            if (foodItemRepo.count() > 0) return;
+
+            // ── veg ──────────────────────────────────────────────────────────
+            foodItemRepo.save(new FoodItemEntity("Paneer",              18.0, 265, "veg",     "100g paneer"));
+            foodItemRepo.save(new FoodItemEntity("Eggs",                13.0, 154, "veg",     "2 large eggs"));
+            foodItemRepo.save(new FoodItemEntity("Greek Yoghurt",       17.0, 100, "veg",     "170g serving"));
+            foodItemRepo.save(new FoodItemEntity("Whole Milk",           8.0, 149, "veg",     "250 ml"));
+            foodItemRepo.save(new FoodItemEntity("Tofu",                17.0, 144, "veg",     "200g firm tofu"));
+            foodItemRepo.save(new FoodItemEntity("Chickpeas",           15.0, 269, "veg",     "200g cooked"));
+            foodItemRepo.save(new FoodItemEntity("Lentils",             18.0, 230, "veg",     "200g cooked"));
+            foodItemRepo.save(new FoodItemEntity("Cottage Cheese",      14.0,  98, "veg",     "100g"));
+            foodItemRepo.save(new FoodItemEntity("Peanut Butter",        8.0, 190, "veg",     "2 tbsp"));
+            // everyday Indian veg
+            foodItemRepo.save(new FoodItemEntity("Moong Dal",           14.0, 212, "veg",     "1 katori (150g) cooked"));
+            foodItemRepo.save(new FoodItemEntity("Toor Dal",            12.0, 198, "veg",     "1 katori (150g) cooked"));
+            foodItemRepo.save(new FoodItemEntity("Masoor Dal",          15.0, 195, "veg",     "1 katori (150g) cooked"));
+            foodItemRepo.save(new FoodItemEntity("Rajma",               15.0, 230, "veg",     "1 katori (150g) cooked"));
+            foodItemRepo.save(new FoodItemEntity("Chana Dal",           13.0, 218, "veg",     "1 katori (150g) cooked"));
+            foodItemRepo.save(new FoodItemEntity("Soya Chunks",         25.0, 173, "veg",     "50g dry / 100g soaked"));
+            foodItemRepo.save(new FoodItemEntity("Dahi (Curd)",          6.0,  61, "veg",     "1 katori (150g)"));
+            foodItemRepo.save(new FoodItemEntity("Roasted Chana",       12.0, 180, "veg",     "50g handful"));
+            foodItemRepo.save(new FoodItemEntity("Peanuts",             13.0, 280, "veg",     "50g (small fistful)"));
+            foodItemRepo.save(new FoodItemEntity("Moong Sprouts",        9.0,  85, "veg",     "1 cup (100g) sprouted"));
+            foodItemRepo.save(new FoodItemEntity("Sattu",               20.0, 220, "veg",     "50g powder in water"));
+            foodItemRepo.save(new FoodItemEntity("Besan Chilla",        12.0, 180, "veg",     "2 medium chillas"));
+            foodItemRepo.save(new FoodItemEntity("Poha with Peanuts",    6.0, 195, "veg",     "1 medium plate (150g)"));
+            foodItemRepo.save(new FoodItemEntity("Almonds",              6.0, 173, "veg",     "25g (about 20 almonds)"));
+            foodItemRepo.save(new FoodItemEntity("Roti with Dal",       14.0, 310, "veg",     "2 rotis + 1 katori dal"));
+
+            // ── non_veg ──────────────────────────────────────────────────────
+            foodItemRepo.save(new FoodItemEntity("Chicken Breast",      31.0, 165, "non_veg", "100g grilled"));
+            foodItemRepo.save(new FoodItemEntity("Tuna (canned)",       25.0, 116, "non_veg", "100g drained"));
+            foodItemRepo.save(new FoodItemEntity("Boiled Eggs",         13.0, 155, "non_veg", "2 eggs"));
+            foodItemRepo.save(new FoodItemEntity("Salmon",              25.0, 208, "non_veg", "100g baked"));
+            foodItemRepo.save(new FoodItemEntity("Egg Whites",          11.0,  52, "non_veg", "3 egg whites"));
+            // everyday Indian non-veg
+            foodItemRepo.save(new FoodItemEntity("Egg Bhurji",          14.0, 180, "non_veg", "2-egg scramble with onion/tomato"));
+            foodItemRepo.save(new FoodItemEntity("Boiled Chicken",      27.0, 150, "non_veg", "100g boneless"));
+            foodItemRepo.save(new FoodItemEntity("Chicken Curry",       22.0, 240, "non_veg", "1 medium serving (150g)"));
+            foodItemRepo.save(new FoodItemEntity("Omelette",            12.0, 154, "non_veg", "2-egg omelette"));
+            foodItemRepo.save(new FoodItemEntity("Rohu Fish",           20.0, 140, "non_veg", "100g cooked"));
+            foodItemRepo.save(new FoodItemEntity("Catla Fish",          19.0, 130, "non_veg", "100g cooked"));
+
+            // ── shake ─────────────────────────────────────────────────────────
+            foodItemRepo.save(new FoodItemEntity("Whey Protein Shake",  25.0, 130, "shake",   "1 scoop (30g) in water"));
+            foodItemRepo.save(new FoodItemEntity("Casein Shake",        24.0, 120, "shake",   "1 scoop (33g) in milk"));
+            foodItemRepo.save(new FoodItemEntity("Plant Protein Shake", 20.0, 140, "shake",   "1 scoop (35g) in water"));
+            // everyday Indian shakes/drinks
+            foodItemRepo.save(new FoodItemEntity("Sattu Drink",         18.0, 180, "shake",   "4 tbsp sattu in 300ml water with lemon"));
+            foodItemRepo.save(new FoodItemEntity("Banana Milk Shake",   10.0, 265, "shake",   "1 banana + 250ml full-fat milk"));
+            foodItemRepo.save(new FoodItemEntity("Dahi Lassi",           8.0, 140, "shake",   "250ml curd blended with water"));
+            foodItemRepo.save(new FoodItemEntity("Peanut Butter Shake", 18.0, 310, "shake",   "2 tbsp PB + 250ml milk + banana"));
         };
     }
 

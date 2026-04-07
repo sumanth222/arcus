@@ -74,6 +74,14 @@ public class UserProfileEntity {
     @Column(nullable = true)
     private String workoutSplit;
 
+    /** Body weight in kg — used for nutrition target calculations */
+    @Column(nullable = true)
+    private Double weightKg;
+
+    /** Height in cm — used for BMR / calorie calculations */
+    @Column(nullable = true)
+    private Double heightCm;
+
     // Constructor
     public UserProfileEntity() {}
 
@@ -238,6 +246,22 @@ public class UserProfileEntity {
 
     public void setWorkoutSplit(String workoutSplit) {
         this.workoutSplit = workoutSplit;
+    }
+
+    public Double getWeightKg() {
+        return weightKg;
+    }
+
+    public void setWeightKg(Double weightKg) {
+        this.weightKg = weightKg;
+    }
+
+    public Double getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Double heightCm) {
+        this.heightCm = heightCm;
     }
 
     // Helper methods

@@ -13,11 +13,11 @@ public interface WorkoutTemplateRepo
 
     // ── Level-free lookups (preferred) ────────────────────────────────────────
     /** Primary lookup: split + goal + day — level is irrelevant for template selection. */
-    Optional<WorkoutTemplateEntity> findByGoalAndSplitAndDayNumber(
+    Optional<WorkoutTemplateEntity> findFirstByGoalAndSplitAndDayNumber(
             String goal, String split, Integer dayNumber);
 
     /** Fallback when split is not specified. */
-    Optional<WorkoutTemplateEntity> findByGoalAndDayNumber(
+    Optional<WorkoutTemplateEntity> findFirstByGoalAndDayNumber(
             String goal, Integer dayNumber);
 
     @Query("SELECT MAX(wt.dayNumber) FROM WorkoutTemplateEntity wt " +
@@ -30,10 +30,10 @@ public interface WorkoutTemplateRepo
     Optional<Integer> findMaxDayNumberByGoal(@Param("goal") String goal);
 
     // ── Legacy level-based lookups (kept for backward compatibility) ───────────
-    Optional<WorkoutTemplateEntity> findByLevelAndGoalAndDayNumber(
+    Optional<WorkoutTemplateEntity> findFirstByLevelAndGoalAndDayNumber(
             String level, String goal, Integer dayNumber);
 
-    Optional<WorkoutTemplateEntity> findByLevelAndGoalAndSplitAndDayNumber(
+    Optional<WorkoutTemplateEntity> findFirstByLevelAndGoalAndSplitAndDayNumber(
             String level, String goal, String split, Integer dayNumber);
 
     @Query("SELECT MAX(wt.dayNumber) FROM WorkoutTemplateEntity wt " +
@@ -46,4 +46,3 @@ public interface WorkoutTemplateRepo
     Optional<Integer> findMaxDayNumberByLevelAndGoalAndSplit(
             @Param("level") String level, @Param("goal") String goal, @Param("split") String split);
 }
-

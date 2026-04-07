@@ -43,7 +43,9 @@ public class UserProfileController {
                 request.getFitnessGoal(),
                 request.getWorkoutSplit(),
                 request.getLastWorkoutDay(),
-                request.getCredentialsId()
+                request.getCredentialsId(),
+                request.getWeightKg(),
+                request.getHeightCm()
         );
     }
 

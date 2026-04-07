@@ -323,10 +323,10 @@ public class WorkoutGenerationService {
     private WorkoutTemplateEntity resolveTemplate(String level, String goal, String split, int dayNumber) {
         if (split != null && !split.isBlank()) {
             Optional<WorkoutTemplateEntity> bySplitAndDay =
-                    templateRepo.findByGoalAndSplitAndDayNumber(goal, split, dayNumber);
+                    templateRepo.findFirstByGoalAndSplitAndDayNumber(goal, split, dayNumber);
             if (bySplitAndDay.isPresent()) return bySplitAndDay.get();
         }
-        return templateRepo.findByGoalAndDayNumber(goal, dayNumber)
+        return templateRepo.findFirstByGoalAndDayNumber(goal, dayNumber)
                 .orElseThrow(() -> new RuntimeException(
                         "No template found for goal=" + goal
                                 + (split != null && !split.isBlank() ? ", split=" + split : "")
