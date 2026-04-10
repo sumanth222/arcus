@@ -9,6 +9,8 @@ import com.arcus.arc1.UserProfile.UserProfileRepo;
 import com.arcus.arc1.WorkoutSession.WorkoutSessionEntity;
 import com.arcus.arc1.WorkoutSession.WorkoutSessionRepo;
 import com.arcus.arc1.dto.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -40,6 +42,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class NutritionService {
+
+    private static final Logger log = LoggerFactory.getLogger(NutritionService.class);
 
     // ── intensity thresholds (kg·reps) ──────────────────────────────────────
     private static final double VOLUME_LOW_THRESHOLD    = 2_500.0;
@@ -138,7 +142,8 @@ public class NutritionService {
     // ════════════════════════════════════════════════════════════════════════
 
     public PostWorkoutNutritionDTO getPostWorkoutNutrition(Long userId, Long workoutSessionId) {
-        UserProfileEntity profile = getProfile(userId);
+        // Validate user exists
+        getProfile(userId);
 
         workoutSessionRepo.findById(workoutSessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -221,51 +226,71 @@ public class NutritionService {
     // ════════════════════════════════════════════════════════════════════════
 
     public List<QuickNutritionOptionsDTO> getQuickOptions(Long userId) {
-        // Ensure the user exists
-        getProfile(userId);
+        UserProfileEntity profile = getProfile(userId);
+        String goal  = profile.getFitnessGoal() != null ? profile.getFitnessGoal().toLowerCase() : "maintain";
 
-        List<FoodItemEntity> allFoods = foodItemRepo.findAll();
+        // Shuffle so every call returns a fresh, varied selection
+        List<FoodItemEntity> all = new ArrayList<>(foodItemRepo.findAll());
+        Collections.shuffle(all);
+
+        List<FoodItemEntity> vegItems    = all.stream().filter(f -> "veg".equalsIgnoreCase(f.getCategory())).collect(Collectors.toList());
+        List<FoodItemEntity> nonVegItems = all.stream().filter(f -> "non_veg".equalsIgnoreCase(f.getCategory())).collect(Collectors.toList());
+        List<FoodItemEntity> shakeItems  = all.stream().filter(f -> "shake".equalsIgnoreCase(f.getCategory())).collect(Collectors.toList());
 
         List<QuickNutritionOptionsDTO> combos = new ArrayList<>();
 
-        // Combo 1 – Vegetarian power combo
-        List<FoodSuggestionDTO> vegCombo = allFoods.stream()
-                .filter(f -> "veg".equalsIgnoreCase(f.getCategory()))
+        // ── Combo 1: Goal-aligned power combo ───────────────────────────────
+        // weight_loss → best protein-per-calorie; muscle_gain/strength → highest protein
+        List<FoodItemEntity> goalSorted = new ArrayList<>(all);
+        if ("weight_loss".equals(goal)) {
+            goalSorted.sort(Comparator.comparingDouble(f -> -(f.getProteinGrams() / Math.max(f.getCaloriesKcal(), 1))));
+        } else {
+            goalSorted.sort(Comparator.comparingDouble(f -> -f.getProteinGrams()));
+        }
+        List<FoodSuggestionDTO> powerItems = goalSorted.stream()
                 .limit(3)
                 .map(this::toSuggestionDTO)
                 .collect(Collectors.toList());
-        if (!vegCombo.isEmpty()) {
-            combos.add(buildCombo("Vegetarian protein combo", vegCombo));
-        }
+        String powerName = switch (goal) {
+            case "weight_loss" -> "Lean Protein Combo";
+            case "muscle_gain" -> "Muscle Builder Combo";
+            case "strength"    -> "Strength Fuel Combo";
+            default            -> "High Protein Combo";
+        };
+        if (!powerItems.isEmpty()) combos.add(buildCombo(powerName, powerItems));
 
-        // Combo 2 – Non-veg classic
-        List<FoodSuggestionDTO> nonVegCombo = allFoods.stream()
-                .filter(f -> "non_veg".equalsIgnoreCase(f.getCategory()))
-                .limit(3)
-                .map(this::toSuggestionDTO)
-                .collect(Collectors.toList());
-        if (!nonVegCombo.isEmpty()) {
-            combos.add(buildCombo("Non-veg classic combo", nonVegCombo));
-        }
+        // ── Combo 2: Mixed plate (veg + non_veg together) ───────────────────
+        List<FoodSuggestionDTO> mixedItems = new ArrayList<>();
+        if (!nonVegItems.isEmpty()) mixedItems.add(toSuggestionDTO(nonVegItems.get(0)));
+        if (!vegItems.isEmpty())    mixedItems.add(toSuggestionDTO(vegItems.get(0)));
+        if (vegItems.size() > 1)    mixedItems.add(toSuggestionDTO(vegItems.get(1)));
+        if (!mixedItems.isEmpty()) combos.add(buildCombo("Mixed Protein Plate", mixedItems));
 
-        // Combo 3 – Shake + whole food
+        // ── Combo 3: Quick shake + whole food ───────────────────────────────
         List<FoodSuggestionDTO> shakeCombo = new ArrayList<>();
-        allFoods.stream().filter(f -> "shake".equalsIgnoreCase(f.getCategory())).findFirst()
-                .ifPresent(s -> shakeCombo.add(toSuggestionDTO(s)));
-        allFoods.stream().filter(f -> "veg".equalsIgnoreCase(f.getCategory())).findFirst()
-                .ifPresent(s -> shakeCombo.add(toSuggestionDTO(s)));
-        if (!shakeCombo.isEmpty()) {
-            combos.add(buildCombo("Quick shake combo", shakeCombo));
-        }
+        if (!shakeItems.isEmpty()) shakeCombo.add(toSuggestionDTO(shakeItems.get(0)));
+        // complement the shake with a medium-protein solid food
+        all.stream()
+                .filter(f -> !"shake".equalsIgnoreCase(f.getCategory()) && f.getProteinGrams() >= 10.0)
+                .findFirst()
+                .ifPresent(f -> shakeCombo.add(toSuggestionDTO(f)));
+        if (!shakeCombo.isEmpty()) combos.add(buildCombo("Quick Shake + Food Combo", shakeCombo));
 
-        // Combo 4 – Mixed best protein-per-calorie
-        List<FoodSuggestionDTO> mixedCombo = allFoods.stream()
-                .sorted(Comparator.comparingDouble(f ->
-                        -(f.getProteinGrams() / Math.max(f.getCaloriesKcal(), 1))))
-                .limit(4)
+        // ── Combo 4: Indian kitchen combo (randomly varied each call) ───────
+        // Pick 3 random veg staples — shuffle already applied so always different
+        List<FoodSuggestionDTO> indianItems = vegItems.stream()
+                .limit(3)
                 .map(this::toSuggestionDTO)
                 .collect(Collectors.toList());
-        combos.add(buildCombo("Best protein-per-calorie combo", mixedCombo));
+        if (!indianItems.isEmpty()) combos.add(buildCombo("Indian Kitchen Combo", indianItems));
+
+        // ── Combo 5: Budget protein (high protein, ≤ 230 kcal per serving) ──
+        List<FoodSuggestionDTO> budgetItems = all.stream()
+                .filter(f -> f.getProteinGrams() >= 12.0 && f.getCaloriesKcal() <= 230)
+                .limit(3)
+                .map(this::toSuggestionDTO)
+                .collect(Collectors.toList());
+        if (!budgetItems.isEmpty()) combos.add(buildCombo("Budget Protein Combo", budgetItems));
 
         return combos;
     }
@@ -301,17 +326,19 @@ public class NutritionService {
 
         double totalVolume = 0.0;
         for (ExerciseSessionEntity ex : exercises) {
+            boolean countedFromLogs = false;
             if (ex.getWorkoutExerciseTemplateId() != null) {
                 List<SetLogEntity> logs = setLogRepo
                         .findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(ex.getWorkoutExerciseTemplateId());
                 for (SetLogEntity log : logs) {
                     if (log.getWeight() != null && log.getReps() != null) {
                         totalVolume += log.getWeight() * log.getReps();
+                        countedFromLogs = true;
                     }
                 }
             }
-            // Fallback: use target weight × rep midpoint × completed sets
-            if (ex.getTargetWeight() != null && ex.getCompletedSets() != null
+            // Fallback: use target weight × rep midpoint × completed sets ONLY when no actual set logs exist
+            if (!countedFromLogs && ex.getTargetWeight() != null && ex.getCompletedSets() != null
                     && ex.getRepMin() != null && ex.getRepMax() != null) {
                 int midReps = (ex.getRepMin() + ex.getRepMax()) / 2;
                 totalVolume += ex.getTargetWeight() * midReps * ex.getCompletedSets();
@@ -367,54 +394,69 @@ public class NutritionService {
         String type;
         if ("HIGH".equals(intensity)) {
             message = "Great workout! Make sure to consume 35–40 g of protein within 30–45 minutes to maximise muscle protein synthesis.";
-            type = "SUCCESS";
+            type = "POST_WORKOUT_SUCCESS";
         } else if ("MEDIUM".equals(intensity)) {
             message = "Solid session! Aim for 30 g protein post-workout along with some carbs to refuel.";
-            type = "INFO";
+            type = "POST_WORKOUT_INFO";
         } else {
             message = "Light session completed. 25 g protein is sufficient. Stay hydrated and get enough sleep for recovery.";
-            type = "INFO";
+            type = "POST_WORKOUT_INFO";
         }
-        insightRepo.save(new NutritionInsightEntity(userId, message, type));
+
+        // Upsert: one POST_WORKOUT_ row per user — update in place, don't keep creating new rows
+        NutritionInsightEntity insight = insightRepo
+                .findTopByUserIdAndTypeStartingWithOrderByCreatedAtDesc(userId, "POST_WORKOUT_")
+                .orElse(new NutritionInsightEntity());
+        insight.setUserId(userId);
+        insight.setMessage(message);
+        insight.setType(type);
+        insight.setCreatedAt(LocalDateTime.now());
+        insightRepo.save(insight);
     }
 
     /**
-     * Generates heuristic insights based on recent workout frequency.
-     * Only creates a new insight if a similar one hasn't been created in the past 7 days
-     * (prevents spam — we check by looking at the most recent insight).
+     * Computes the user's workout frequency for the past 7 days and upserts a single
+     * CONSISTENCY_ insight row. Upsert means we UPDATE the existing row rather than
+     * inserting a new one — this keeps the table clean (one row per user).
      */
     private void evaluateWorkoutConsistencyInsights(Long userId) {
-        List<WorkoutSessionEntity> recentSessions = workoutSessionRepo
-                .findByUserIdOrderByCreatedAtDesc(userId);
+        // Query only completed sessions directly from DB
+        List<WorkoutSessionEntity> completedSessions = workoutSessionRepo
+                .findByUserIdAndCompletedTrueOrderByCreatedAtDesc(userId);
 
-        long completedLast7Days = recentSessions.stream()
-                .filter(WorkoutSessionEntity::isCompleted)
-                .filter(s -> s.getCreatedAt() != null &&
-                             s.getCreatedAt().isAfter(LocalDateTime.now().minusDays(7)))
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        long completedLast7Days = completedSessions.stream()
+                .filter(s -> s.getCreatedAt() != null && s.getCreatedAt().isAfter(sevenDaysAgo))
                 .count();
 
-        List<NutritionInsightEntity> existing = insightRepo.findTop10ByUserIdOrderByCreatedAtDesc(userId);
-        boolean recentInsightExists = existing.stream()
-                .anyMatch(i -> i.getCreatedAt().isAfter(LocalDateTime.now().minusDays(3)));
-
-        if (recentInsightExists) return; // avoid insight spam
+        log.info("[NutritionInsight] userId={} | totalCompleted={} | completedLast7Days={}",
+                userId, completedSessions.size(), completedLast7Days);
 
         String message;
         String type;
         if (completedLast7Days >= 4) {
             message = "🔥 You've completed " + completedLast7Days + " workouts this week — great consistency! Make sure your protein intake is on point to support your progress.";
-            type = "SUCCESS";
+            type = "CONSISTENCY_SUCCESS";
         } else if (completedLast7Days >= 2) {
             message = "You've worked out " + completedLast7Days + " times this week. Try to squeeze in one more session and pair it with adequate protein for better results.";
-            type = "INFO";
+            type = "CONSISTENCY_INFO";
         } else if (completedLast7Days == 1) {
             message = "Only 1 workout this week so far. Even on rest days, try to hit your daily protein target to preserve muscle.";
-            type = "WARNING";
+            type = "CONSISTENCY_WARNING";
         } else {
             message = "No workouts logged this week yet. Fuel up and get started — consistent effort is the key to progress!";
-            type = "WARNING";
+            type = "CONSISTENCY_WARNING";
         }
-        insightRepo.save(new NutritionInsightEntity(userId, message, type));
+
+        // Upsert: one CONSISTENCY_ row per user — update in place, don't keep creating new rows
+        NutritionInsightEntity insight = insightRepo
+                .findTopByUserIdAndTypeStartingWithOrderByCreatedAtDesc(userId, "CONSISTENCY_")
+                .orElse(new NutritionInsightEntity());
+        insight.setUserId(userId);
+        insight.setMessage(message);
+        insight.setType(type);
+        insight.setCreatedAt(LocalDateTime.now());
+        insightRepo.save(insight);
     }
 }
 

@@ -184,28 +184,33 @@ public class WorkoutGenerationService {
         Long userId = request.getUserId();
         String level = request.getLevel();
         String goal = request.getGoal();
-        String split = request.getSplit();
         Integer dayNumber = request.getLastWorkoutDay() != null ? request.getLastWorkoutDay() : 0;
 
-        // ── Resolve template first so we can check for an existing session ────
+        // ── Always read split from the user's current profile ─────────────────
+        // This ensures that if the user changed their split after starting a workout,
+        // we resolve the correct (new) template instead of reusing the old one.
+        UserProfileEntity userProfile = userProfileRepo.findByUserId(userId).orElse(null);
+        String split = (userProfile != null && userProfile.getWorkoutSplit() != null)
+                ? userProfile.getWorkoutSplit()
+                : request.getSplit(); // fall back to request only if profile has none
+
+        // ── Resolve the correct template for the user's CURRENT split ──────────
         WorkoutTemplateEntity workoutTemplate = resolveTemplate(level, goal, split, dayNumber);
 
-        // ── Reuse existing incomplete session if one exists ────────────────────
-        WorkoutSessionEntity session = workoutSessionRepo
-                .findTop1ByUserIdAndTemplateIdAndCompletedFalseOrderByCreatedAtDesc(userId, workoutTemplate.getId())
-                .orElse(null);
+        // ── Delete any existing incomplete sessions for this user ────────────
+        // Always start fresh — no reuse of previous incomplete sessions.
+        List<WorkoutSessionEntity> incompleteSessions =
+                workoutSessionRepo.findByUserIdAndCompletedFalse(userId);
+        if (!incompleteSessions.isEmpty()) {
+            workoutSessionRepo.deleteAll(incompleteSessions);
+        }
 
-        Long existingSessionId = session != null ? session.getId() : null;
-
-        if (existingSessionId != null) {
-            // Wipe stale template entities for this user/day so exercises are always
-            // freshly picked (split or muscle-group may have changed since last generation)
-            List<WorkoutExerciseTemplateEntity> stale =
-                    workoutExerciseTemplateRepository.findByUserIdAndDayNumberOrderByCreatedAtDesc(
-                            userId != null ? userId.intValue() : null, dayNumber);
-            if (!stale.isEmpty()) {
-                workoutExerciseTemplateRepository.deleteAll(stale);
-            }
+        // ── Always clean up old WorkoutExerciseTemplate entries for this user/day ──
+        List<WorkoutExerciseTemplateEntity> staleTemplates =
+                workoutExerciseTemplateRepository.findByUserIdAndDayNumberOrderByCreatedAtDesc(
+                        userId != null ? userId.intValue() : null, dayNumber);
+        if (!staleTemplates.isEmpty()) {
+            workoutExerciseTemplateRepository.deleteAll(staleTemplates);
         }
 
         // ── Always generate fresh exercises ───────────────────────────────────
@@ -263,37 +268,28 @@ public class WorkoutGenerationService {
         for (int i = 0; i < templateEntities.size(); i++) {
             WorkoutExerciseTemplateEntity template = templateEntities.get(i);
             ExerciseDTO edto = result.get(i);
+            ExerciseLibraryEntity exLib = allExerciseEntities.get(i);
             List<SetLogEntity> logs = setLogRepo.findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(template.getId());
             double weight;
             if (!logs.isEmpty()) {
-                weight = logs.stream().mapToDouble(SetLogEntity::getWeight).average().orElse(0.0);
+                double raw = logs.stream().mapToDouble(SetLogEntity::getWeight).average().orElse(0.0);
+                // Re-round using split-aware rounding (logs may have been stored before this fix)
+                weight = weightAssignmentService.roundToGymWeight(raw, exLib.getName());
             } else {
-                ExerciseLibraryEntity exLib = allExerciseEntities.get(i);
                 weight = resolveBaseWeight(exLib, level);
+                // Apply split-aware rounding to DB base weights too
+                weight = weightAssignmentService.roundToGymWeight(weight, exLib.getName());
             }
             edto.setTargetWeight(weight);
         }
 
-        // Reuse existing session or create a new one
-        WorkoutSessionEntity finalSession;
-        if (existingSessionId != null) {
-            finalSession = workoutSessionRepo.findById(existingSessionId)
-                    .orElseGet(() -> {
-                        WorkoutSessionEntity s = new WorkoutSessionEntity();
-                        s.setUserId(userId);
-                        s.setTemplateId(workoutTemplate.getId());
-                        s.setCreatedAt(LocalDateTime.now());
-                        s.setCompleted(false);
-                        return workoutSessionRepo.save(s);
-                    });
-        } else {
-            finalSession = new WorkoutSessionEntity();
-            finalSession.setUserId(userId);
-            finalSession.setTemplateId(workoutTemplate.getId());
-            finalSession.setCreatedAt(LocalDateTime.now());
-            finalSession.setCompleted(false);
-            finalSession = workoutSessionRepo.save(finalSession);
-        }
+        // ── Always create a fresh session ─────────────────────────────────────
+        WorkoutSessionEntity finalSession = new WorkoutSessionEntity();
+        finalSession.setUserId(userId);
+        finalSession.setTemplateId(workoutTemplate.getId());
+        finalSession.setCreatedAt(LocalDateTime.now());
+        finalSession.setCompleted(false);
+        finalSession = workoutSessionRepo.save(finalSession);
 
         return new WorkoutResponseDTO(finalSession.getId(), level, dayNumber, result);
     }
@@ -502,7 +498,8 @@ public class WorkoutGenerationService {
                 currentWeight,
                 templateExercise.getSets(),
                 templateExercise.getRepMin(),
-                templateExercise.getRepMax()
+                templateExercise.getRepMax(),
+                exerciseName
         );
 
         System.out.println("[WEIGHT-DEBUG] Result for '" + exerciseName +

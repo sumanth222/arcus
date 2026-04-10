@@ -30,24 +30,21 @@ public class AuthService {
      * Profile is not created yet — userId remains null until onboarding.
      */
     public LoginResponse register(LoginRequest request) {
-        // Validate email is present and looks valid
+        // Email is optional during registration — validate format only if provided
         String email = request.getEmail();
-        if (email == null || email.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required for registration");
-        }
-        if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
+        if (email != null && !email.isBlank()) {
+            if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
+            }
         }
 
         if (credentialsRepo.existsByUsername(request.getUsername())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken");
         }
-        if (credentialsRepo.existsByEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
-        }
-
         String hashedPassword = passwordEncoder.encode(request.getPassword());
-        UserCredentials credentials = new UserCredentials(request.getUsername(), hashedPassword, email);
+        UserCredentials credentials = (email != null && !email.isBlank())
+                ? new UserCredentials(request.getUsername(), hashedPassword, email)
+                : new UserCredentials(request.getUsername(), hashedPassword);
         credentials = credentialsRepo.save(credentials);
 
         return new LoginResponse(null, credentials.getId(), request.getUsername(), true);

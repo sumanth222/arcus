@@ -99,14 +99,20 @@ public class UserProfileService {
     /**
      * Updates user profile information.
      */
-    public UserProfileDTO updateUserProfile(Long userId, String name, String email, String bio, String fitnessGoal, Integer lastWorkoutDay) {
+    public UserProfileDTO updateUserProfile(Long userId, String name, String email, String bio,
+                                             String fitnessGoal, String currentLevel, String workoutSplit,
+                                             Double heightCm, Double weightKg, Integer lastWorkoutDay) {
         UserProfileEntity profile = userProfileRepo.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User profile not found for userId: " + userId));
 
-        if (name != null) profile.setName(name);
-        if (email != null) profile.setEmail(email);
+        if (name != null && !name.isBlank()) profile.setName(name);
+        if (email != null && !email.isBlank()) profile.setEmail(email);
         if (bio != null) profile.setBio(bio);
-        if (fitnessGoal != null) profile.setFitnessGoal(fitnessGoal);
+        if (fitnessGoal != null && !fitnessGoal.isBlank()) profile.setFitnessGoal(fitnessGoal);
+        if (currentLevel != null && !currentLevel.isBlank()) profile.setCurrentLevel(currentLevel);
+        if (workoutSplit != null && !workoutSplit.isBlank()) profile.setWorkoutSplit(workoutSplit);
+        if (heightCm != null) profile.setHeightCm(heightCm);
+        if (weightKg != null) profile.setWeightKg(weightKg);
         if (lastWorkoutDay != null) profile.setLastWorkoutDay(lastWorkoutDay);
 
         profile.setLastUpdatedAt(LocalDateTime.now());

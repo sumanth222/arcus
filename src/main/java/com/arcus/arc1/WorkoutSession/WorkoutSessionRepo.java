@@ -36,4 +36,16 @@ public interface WorkoutSessionRepo
      * Used to avoid creating duplicate sessions when the user re-hits generate workout.
      */
     Optional<WorkoutSessionEntity> findTop1ByUserIdAndTemplateIdAndCompletedFalseOrderByCreatedAtDesc(Long userId, Long templateId);
+
+    /**
+     * All completed sessions for a user, most-recent-first.
+     * Used for consistency insight counting so we don't load incomplete sessions.
+     */
+    List<WorkoutSessionEntity> findByUserIdAndCompletedTrueOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * All currently incomplete sessions for a user.
+     * Used to abandon stale sessions when the user changes their workout split.
+     */
+    List<WorkoutSessionEntity> findByUserIdAndCompletedFalse(Long userId);
 }

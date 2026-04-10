@@ -1,6 +1,7 @@
 package com.arcus.arc1.UserProfile;
 
 import com.arcus.arc1.dto.CreateProfileRequest;
+import com.arcus.arc1.dto.UpdateProfileRequest;
 import com.arcus.arc1.dto.UserProfileDTO;
 import org.springframework.web.bind.annotation.*;
 
@@ -74,13 +75,20 @@ public class UserProfileController {
     @PutMapping("/{userId}")
     public UserProfileDTO updateProfile(
             @PathVariable Long userId,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String email,
-            @RequestParam(required = false) String bio,
-            @RequestParam(required = false) String fitnessGoal,
-            @RequestParam(required = false) Integer lastWorkoutDay) {
+            @RequestBody UpdateProfileRequest request) {
 
-        return userProfileService.updateUserProfile(userId, name, email, bio, fitnessGoal, lastWorkoutDay);
+        return userProfileService.updateUserProfile(
+                userId,
+                request.getName(),
+                request.getEmail(),
+                request.getBio(),
+                request.getFitnessGoal(),
+                request.getCurrentLevel(),
+                request.getWorkoutSplit(),
+                request.getHeightCm(),
+                request.getWeightKg(),
+                request.getLastWorkoutDay()
+        );
     }
 
     /**
