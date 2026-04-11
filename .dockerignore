@@ -1,0 +1,29 @@
+# Build artifacts
+build/
+
+# Gradle cache (NOT the gradle wrapper folder which is needed for the build)
+**/.gradle/
+
+# IDE files
+.idea/
+*.iml
+*.iws
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Docs / scripts that aren't needed in the image
+*.md
+*.sql
+*.sh
+dontcommit.txt
+
+# Test reports
+build/reports/
+
+# Don't bake secrets into the image — pass them as env vars at runtime
+# src/main/resources/application.properties is included intentionally
+# (contains defaults); override with env vars in production
+
