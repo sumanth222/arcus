@@ -6,6 +6,7 @@ public class LoginResponse {
     private Long credentialsId;
     private String name;
     private boolean newUser;
+    private String username;
 
     public LoginResponse() {}
 
@@ -14,6 +15,14 @@ public class LoginResponse {
         this.credentialsId = credentialsId;
         this.name = name;
         this.newUser = newUser;
+    }
+
+    public LoginResponse(Long userId, Long credentialsId, String name, boolean newUser, String username) {
+        this.userId = userId;
+        this.credentialsId = credentialsId;
+        this.name = name;
+        this.newUser = newUser;
+        this.username = username;
     }
 
     public Long getUserId() { return userId; }
@@ -27,5 +36,7 @@ public class LoginResponse {
 
     public boolean isNewUser() { return newUser; }
     public void setNewUser(boolean newUser) { this.newUser = newUser; }
-}
 
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+}

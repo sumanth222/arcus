@@ -14,7 +14,7 @@ public class UserCredentials {
     @Column(unique = true, nullable = false)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String passwordHash;
 
     @Column(nullable = true)
@@ -22,6 +22,9 @@ public class UserCredentials {
 
     @Column(nullable = true)
     private String email;
+
+    @Column(nullable = true)
+    private String googleSub;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -38,6 +41,14 @@ public class UserCredentials {
         this.username = username;
         this.passwordHash = passwordHash;
         this.email = email;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // Constructor for Google Sign-In users (no password)
+    public UserCredentials(String username, String email, String googleSub, boolean isGoogleUser) {
+        this.username = username;
+        this.email = email;
+        this.googleSub = googleSub;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -81,6 +92,14 @@ public class UserCredentials {
         this.email = email;
     }
 
+    public String getGoogleSub() {
+        return googleSub;
+    }
+
+    public void setGoogleSub(String googleSub) {
+        this.googleSub = googleSub;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -89,4 +108,3 @@ public class UserCredentials {
         this.createdAt = createdAt;
     }
 }
-
