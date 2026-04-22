@@ -131,7 +131,25 @@ public class AuthService {
             String baseUsername = email != null ? email.split("@")[0] : "user";
             String username = generateUniqueUsername(baseUsername);
             credentials = new UserCredentials(username, email, googleSub, true);
+
+            // Auto-link existing profile by email if found
+            if (email != null) {
+                UserProfileEntity profileByEmail = userProfileRepo.findByEmail(email).orElse(null);
+                if (profileByEmail != null) {
+                    credentials.setUserId(profileByEmail.getUserId());
+                }
+            }
+
             credentials = credentialsRepo.save(credentials);
+
+            // If we found and linked a profile, return as existing user
+            if (credentials.getUserId() != null) {
+                UserProfileEntity profile = userProfileRepo.findByUserId(credentials.getUserId()).orElse(null);
+                String displayName = (profile != null && profile.getName() != null) ? profile.getName()
+                        : (name != null ? name : credentials.getUsername());
+                return new LoginResponse(credentials.getUserId(), credentials.getId(), displayName, false, credentials.getUsername());
+            }
+
             return new LoginResponse(null, credentials.getId(), name != null ? name : username, true, username);
         }
 
