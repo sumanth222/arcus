@@ -192,7 +192,13 @@ public class WorkoutGenerationService {
         UserProfileEntity userProfile = userProfileRepo.findByUserId(userId).orElse(null);
         String split = (userProfile != null && userProfile.getWorkoutSplit() != null)
                 ? userProfile.getWorkoutSplit()
-                : request.getSplit(); // fall back to request only if profile has none
+                : request.getSplit();
+
+        // ── Resolve allowed equipment from user's workout location ─────────────
+        String workoutLocation = (userProfile != null && userProfile.getWorkoutLocation() != null)
+                ? userProfile.getWorkoutLocation().toLowerCase().trim()
+                : "gym";
+        List<String> allowedEquipment = resolveAllowedEquipment(workoutLocation);
 
         // ── Resolve the correct template for the user's CURRENT split ──────────
         WorkoutTemplateEntity workoutTemplate = resolveTemplate(level, goal, split, dayNumber);
@@ -233,8 +239,14 @@ public class WorkoutGenerationService {
             int countForMuscle = allocation[m];
             if (countForMuscle <= 0) continue;
 
-            List<ExerciseLibraryEntity> exerciseLibraryEntities =
-                    exerciseLibraryRepo.findByMuscleGroupAndLevelContains(muscleRequest, level);
+            List<ExerciseLibraryEntity> exerciseLibraryEntities;
+            if (allowedEquipment == null) {
+                // "both" / no filter — use existing unrestricted query
+                exerciseLibraryEntities = exerciseLibraryRepo.findByMuscleGroupAndLevelContains(muscleRequest, level);
+            } else {
+                // Filter by location-derived equipment list
+                exerciseLibraryEntities = exerciseLibraryRepo.findByMuscleGroupAndLevelContainsAndEquipmentIn(muscleRequest, level, allowedEquipment);
+            }
 
             exerciseLibraryEntities = pickRandom(exerciseLibraryEntities, countForMuscle);
 
@@ -665,6 +677,26 @@ public class WorkoutGenerationService {
         }
 
         return false;
+    }
+
+    /**
+     * Maps the user's workout_location preference to a list of allowed equipment types.
+     *
+     * "gym"  → all standard gym equipment
+     * "home" → bodyweight and dumbbells only (common home setups)
+     * "both" → null (no filter — all equipment allowed)
+     */
+    private List<String> resolveAllowedEquipment(String workoutLocation) {
+        if (workoutLocation == null) return null;
+        switch (workoutLocation) {
+            case "gym":
+                return List.of("barbell", "dumbbell", "cable", "machine", "smith_machine", "ez_bar", "bodyweight");
+            case "home":
+                return List.of("bodyweight", "dumbbell");
+            case "both":
+            default:
+                return null; // no equipment filter
+        }
     }
 
     public void finishWorkout(Long userId, double totalWeight){

@@ -73,6 +73,7 @@ public class UserProfileEntity {
 
     @Column(nullable = true)
     private String workoutSplit;
+    private String workoutLocation;
 
     /** Body weight in kg — used for nutrition target calculations */
     @Column(nullable = true)
@@ -246,6 +247,14 @@ public class UserProfileEntity {
 
     public void setWorkoutSplit(String workoutSplit) {
         this.workoutSplit = workoutSplit;
+    }
+
+    public String getWorkoutLocation() {
+        return workoutLocation;
+    }
+
+    public void setWorkoutLocation(String workoutLocation) {
+        this.workoutLocation = workoutLocation;
     }
 
     public Double getWeightKg() {

@@ -20,5 +20,7 @@ public interface UserProfileRepo extends JpaRepository<UserProfileEntity, Long> 
      * Check if a user profile exists by user ID.
      */
     boolean existsByUserId(Long userId);
+
+    Optional<UserProfileEntity> findByEmail(String email);
 }
 

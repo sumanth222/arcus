@@ -48,7 +48,8 @@ public class UserProfileService {
     public UserProfileDTO createUserProfile(Long userId, String username, String name, String email,
                                               String level, String fitnessGoal,
                                               String workoutSplit, Integer lastWorkoutDay,
-                                              Long credentialsId, Double weightKg, Double heightCm) {
+                                              Long credentialsId, Double weightKg, Double heightCm,
+                                              String workoutLocation) {
         if (userId != null && userProfileRepo.existsByUserId(userId)) {
             throw new IllegalArgumentException("User profile already exists for userId: " + userId);
         }
@@ -56,6 +57,7 @@ public class UserProfileService {
         UserProfileEntity profile = new UserProfileEntity(userId, name, email, level, fitnessGoal,
                 lastWorkoutDay != null ? lastWorkoutDay : 0, 0);
         profile.setWorkoutSplit(workoutSplit);
+        if (workoutLocation != null) profile.setWorkoutLocation(workoutLocation);
         if (weightKg != null) profile.setWeightKg(weightKg);
         if (heightCm != null) profile.setHeightCm(heightCm);
 

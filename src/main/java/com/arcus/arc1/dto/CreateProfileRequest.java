@@ -9,6 +9,7 @@ public class CreateProfileRequest {
     private String currentLevel;
     private String fitnessGoal;
     private String workoutSplit;
+    private String workoutLocation;
     private Integer lastWorkoutDay;
     private Long credentialsId;
     private Double weightKg;
@@ -36,6 +37,9 @@ public class CreateProfileRequest {
 
     public String getWorkoutSplit() { return workoutSplit; }
     public void setWorkoutSplit(String workoutSplit) { this.workoutSplit = workoutSplit; }
+
+    public String getWorkoutLocation() { return workoutLocation; }
+    public void setWorkoutLocation(String workoutLocation) { this.workoutLocation = workoutLocation; }
 
     public Integer getLastWorkoutDay() { return lastWorkoutDay; }
     public void setLastWorkoutDay(Integer lastWorkoutDay) { this.lastWorkoutDay = lastWorkoutDay; }

@@ -96,7 +96,9 @@ public class SetLogService {
         int targetReps = (exerciseLib != null && exerciseLib.getRepMax() > 0)
                 ? exerciseLib.getRepMax() : (request.getReps() != null ? request.getReps() : 8);
 
-        double lastWeight = request.getWeight() != null ? request.getWeight() : 0.0;
+        double lastWeight = request.getWeight() != null
+                ? snapToGymIncrement(request.getWeight(), equipment)   // sanitise client input
+                : 0.0;
         int    lastReps   = request.getReps()   != null ? request.getReps()   : 0;
 
         // ── Fatigue detection ──────────────────────────────────────────────────
@@ -136,6 +138,9 @@ public class SetLogService {
             // Partially hit target — hold the same weight
             nextSetWeight = lastWeight;
         }
+
+        // ── RPE override (transient — not persisted) ───────────────────────────
+        nextSetWeight = applyRpeAdjustment(nextSetWeight, lastWeight, request.getRpe(), equipment, increment);
 
         SetEvaluationDTO eval = setEvaluationService.evaluateSet(
                 request.getExerciseSessionId(), request.getSetNumber());
@@ -230,7 +235,38 @@ public class SetLogService {
         }
     }
 
-    // ...existing code...
+    /**
+     * Adjusts the next-set weight based on the user's perceived exertion (RPE).
+     * Uses increment-based logic (not percentages) so gym-weight snapping never
+     * accidentally cancels the adjustment.
+     *
+     * "easy"     → nextSetWeight + 1 extra increment  (user had plenty left)
+     * "moderate" → nextSetWeight unchanged             (perfect effort)
+     * "hard"     → hold at lastWeight (no increase)   (near max effort)
+     * "failed"   → lastWeight - 1 increment           (guaranteed drop)
+     * null/blank → nextSetWeight unchanged             (existing logic wins)
+     */
+    private double applyRpeAdjustment(double nextSetWeight, double lastWeight,
+                                      String rpe, String equipment, double increment) {
+        if (rpe == null || rpe.isBlank()) return nextSetWeight;
+
+        double minWeight = minimumWeight(equipment);
+
+        switch (rpe.trim().toLowerCase()) {
+            case "easy":
+                return snapToGymIncrement(nextSetWeight + increment, equipment);
+            case "moderate":
+                return snapToGymIncrement(nextSetWeight, equipment);
+            case "hard":
+                // Don't increase — hold at the weight the user just lifted
+                return snapToGymIncrement(lastWeight, equipment);
+            case "failed":
+                // Drop by one increment from last weight, never below minimum
+                return snapToGymIncrement(Math.max(minWeight, lastWeight - increment), equipment);
+            default:
+                return nextSetWeight;
+        }
+    }
 
     private void updateUserProfileWithSet(Long exerciseSessionId, Double weight, Integer reps) {
         try {

@@ -65,6 +65,20 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
             @Param("level") String level
     );
 
+    /**
+     * Fetch exercises for a muscle group where the comma-separated 'level' field contains the user's level,
+     * filtered to only allowed equipment types (based on workout location).
+     */
+    @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
+            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ',')) " +
+            "AND LOWER(equipment) IN (:equipmentList)",
+            nativeQuery = true)
+    List<ExerciseLibraryEntity> findByMuscleGroupAndLevelContainsAndEquipmentIn(
+            @Param("muscleGroup") String muscleGroup,
+            @Param("level") String level,
+            @Param("equipmentList") List<String> equipmentList
+    );
+
     // Kept for backward-compatibility but prefer the native-query variants above
     List<ExerciseLibraryEntity> findByMuscleGroupIgnoreCaseAndMuscleAreaInAndLevelIgnoreCase(
             String muscleGroup, List<String> muscleArea, String level
@@ -74,7 +88,3 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
             String muscleGroup, String level
     );
 }
-
-
-
-

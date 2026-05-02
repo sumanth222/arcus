@@ -6,6 +6,9 @@ public class SetLogDTO {
     private Integer setNumber;
     private Double weight;
     private Integer reps;
+    private String rpe; // optional: "easy", "moderate", "hard", "failed"
+
+    public SetLogDTO() {}
 
     public SetLogDTO(Long exerciseSessionId, Long workoutExerciseTemplateId, Integer setNumber, Double weight, Integer reps) {
         this.exerciseSessionId = exerciseSessionId;
@@ -53,5 +56,13 @@ public class SetLogDTO {
 
     public void setReps(Integer reps) {
         this.reps = reps;
+    }
+
+    public String getRpe() {
+        return rpe;
+    }
+
+    public void setRpe(String rpe) {
+        this.rpe = rpe;
     }
 }
