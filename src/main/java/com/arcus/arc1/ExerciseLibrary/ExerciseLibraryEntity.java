@@ -74,6 +74,10 @@ public class ExerciseLibraryEntity {
     @Column
     private int sets;
 
+    /** Workout location suitability: "gym", "home", or "both" */
+    @Column(name = "workout_location")
+    private String workoutLocation;
+
     public ExerciseLibraryEntity() {}
 
     public ExerciseLibraryEntity(Long id, String name, String muscleGroup, String secondaryMuscles, String muscleArea,
@@ -160,8 +164,7 @@ public class ExerciseLibraryEntity {
     public void setSets(int sets) {
         this.sets = sets;
     }
+
+    public String getWorkoutLocation() { return workoutLocation; }
+    public void setWorkoutLocation(String workoutLocation) { this.workoutLocation = workoutLocation; }
 }
-
-
-
-

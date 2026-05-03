@@ -205,6 +205,7 @@ public class UserProfileService {
                 profile.getLastExerciseSessionId()
         );
         dto.setWorkoutSplit(profile.getWorkoutSplit());
+        dto.setWorkoutLocation(profile.getWorkoutLocation());
         return dto;
     }
 
