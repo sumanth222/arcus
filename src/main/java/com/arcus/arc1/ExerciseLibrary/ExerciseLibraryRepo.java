@@ -79,6 +79,23 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
             @Param("equipmentList") List<String> equipmentList
     );
 
+    /**
+     * Replacement query: muscle group + level + optional equipment filter + exclude already-used IDs.
+     * When equipmentList is not needed pass all equipment types; caller controls the filter via the list.
+     */
+    @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
+            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ',')) " +
+            "AND LOWER(equipment) IN (:equipmentList) " +
+            "AND id NOT IN (:excludeIds) " +
+            "ORDER BY RANDOM() LIMIT 10",
+            nativeQuery = true)
+    List<ExerciseLibraryEntity> findReplacementExercises(
+            @Param("muscleGroup") String muscleGroup,
+            @Param("level") String level,
+            @Param("equipmentList") List<String> equipmentList,
+            @Param("excludeIds") List<Long> excludeIds
+    );
+
     // Kept for backward-compatibility but prefer the native-query variants above
     List<ExerciseLibraryEntity> findByMuscleGroupIgnoreCaseAndMuscleAreaInAndLevelIgnoreCase(
             String muscleGroup, List<String> muscleArea, String level
@@ -88,3 +105,4 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
             String muscleGroup, String level
     );
 }
+

@@ -43,4 +43,10 @@ public class WorkoutController {
     public void finishWorkout(@RequestParam Long userId, @RequestParam double totalWeight) {
         workoutGenerationService.finishWorkout(userId, totalWeight);
     }
- }
+
+    @PostMapping("/replaceExercise")
+    public List<com.arcus.arc1.dto.ExerciseDTO> replaceExercise(
+            @RequestBody com.arcus.arc1.dto.ReplaceExerciseRequest request) {
+        return workoutGenerationService.replaceExercise(request);
+    }
+}

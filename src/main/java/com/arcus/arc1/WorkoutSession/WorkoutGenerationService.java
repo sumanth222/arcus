@@ -699,7 +699,7 @@ public class WorkoutGenerationService {
         }
     }
 
-    public void finishWorkout(Long userId, double totalWeight){
+    public void finishWorkout(Long userId, double totalWeight) {
         // Update Workout session entity with status and total weight.
         // If no active session exists (e.g. rest day), silently skip.
         WorkoutSessionEntity workoutSessionEntity =
@@ -712,5 +712,112 @@ public class WorkoutGenerationService {
         workoutSessionEntity.setCompleted(true);
         workoutSessionEntity.setTotalWeight(totalWeight);
         workoutSessionRepo.save(workoutSessionEntity);
+    }
+
+    /**
+     * Replaces an exercise in the current workout session.
+     *
+     * Steps:
+     * 1. Resolve level / goal / workoutLocation from the user profile if not supplied.
+     * 2. Mark the original WorkoutExerciseTemplateEntity as VOIDED (status column).
+     * 3. Query the exercise library for the same muscleGroup, filtered by level and
+     *    allowed equipment, excluding all IDs already in the session.
+     * 4. Pick one at random, persist a new WorkoutExerciseTemplateEntity row, assign
+     *    a starting weight, and return the standard ExerciseDTO payload.
+     */
+    public List<com.arcus.arc1.dto.ExerciseDTO> replaceExercise(com.arcus.arc1.dto.ReplaceExerciseRequest request) {
+        Long userId       = request.getUserId();
+        String muscleGroup = request.getMuscleGroup();
+
+        // ── Resolve profile defaults ───────────────────────────────────────────
+        UserProfileEntity profile = userProfileRepo.findByUserId(userId).orElse(null);
+
+        String level = (request.getLevel() != null && !request.getLevel().isBlank())
+                ? request.getLevel()
+                : (profile != null && profile.getCurrentLevel() != null ? profile.getCurrentLevel() : "beginner");
+
+        String workoutLocation = (profile != null && profile.getWorkoutLocation() != null)
+                ? profile.getWorkoutLocation().toLowerCase().trim()
+                : "gym";
+        List<String> allowedEquipment = resolveAllowedEquipment(workoutLocation);
+        if (allowedEquipment == null) {
+            // "both" — use every known equipment type so the NOT-IN query still works
+            allowedEquipment = List.of("barbell", "dumbbell", "cable", "machine",
+                    "smith_machine", "ez_bar", "bodyweight");
+        }
+
+        // ── Build the exclusion list ───────────────────────────────────────────
+        List<Long> excludeIds = new ArrayList<>();
+        if (request.getExcludeExerciseIds() != null) {
+            excludeIds.addAll(request.getExcludeExerciseIds());
+        }
+        // Also exclude the library ID of the exercise being replaced (if resolvable)
+        if (request.getExerciseSessionId() != null) {
+            workoutExerciseTemplateRepository.findById(request.getExerciseSessionId())
+                    .ifPresent(t -> {
+                        if (t.getExerciseLibraryId() != null) {
+                            excludeIds.add(t.getExerciseLibraryId().longValue());
+                        }
+                    });
+        }
+        // Guard: native IN (:excludeIds) fails on empty list — add a sentinel that can never match
+        if (excludeIds.isEmpty()) excludeIds.add(-1L);
+
+        // ── Query for candidates ───────────────────────────────────────────────
+        List<ExerciseLibraryEntity> candidates =
+                exerciseLibraryRepo.findReplacementExercises(muscleGroup, level, allowedEquipment, excludeIds);
+
+        if (candidates.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND,
+                    "No replacement exercise found for muscleGroup=" + muscleGroup
+                            + ", level=" + level + ", location=" + workoutLocation);
+        }
+
+        // ── Pick one — DB already returned a randomly ordered limited set ────────
+        ExerciseLibraryEntity chosen = candidates.get(0);
+
+        // ── Resolve the current day number from the original template row ──────
+        Integer dayNumber = 0;
+        if (request.getExerciseSessionId() != null) {
+            dayNumber = workoutExerciseTemplateRepository.findById(request.getExerciseSessionId())
+                    .map(WorkoutExerciseTemplateEntity::getDayNumber)
+                    .orElse(0);
+        }
+
+        // ── Persist new WorkoutExerciseTemplateEntity (fresh ID = new session) ─
+        WorkoutExerciseTemplateEntity newTemplate = new WorkoutExerciseTemplateEntity();
+        newTemplate.setUserId(userId != null ? userId.intValue() : null);
+        newTemplate.setDayNumber(dayNumber);
+        newTemplate.setExerciseLibraryId(chosen.getId() != null ? chosen.getId().intValue() : null);
+        newTemplate.setCreatedAt(ZonedDateTime.now());
+        newTemplate = workoutExerciseTemplateRepository.save(newTemplate);
+
+        // ── Assign starting weight using existing logs or base weight ──────────
+        List<SetLogEntity> logs =
+                setLogRepo.findByWorkoutExerciseTemplateIdOrderBySetNumberAsc(newTemplate.getId());
+        double weight;
+        if (!logs.isEmpty()) {
+            double raw = logs.stream().mapToDouble(SetLogEntity::getWeight).average().orElse(0.0);
+            weight = weightAssignmentService.roundToGymWeight(raw, chosen.getName());
+        } else {
+            weight = resolveBaseWeight(chosen, level);
+            weight = weightAssignmentService.roundToGymWeight(weight, chosen.getName());
+        }
+
+        // ── Build response DTO ─────────────────────────────────────────────────
+        ExerciseDTO dto = new ExerciseDTO();
+        dto.setExerciseName(chosen.getName());
+        dto.setTargetWeight(weight);
+        dto.setRepMin(chosen.getRepMin());
+        dto.setRepMax(chosen.getRepMax());
+        dto.setSets(chosen.getSets());
+        dto.setTip(chosen.getTip());
+        dto.setVideoUrl(chosen.getVideoUrl());
+        dto.setMuscleArea(chosen.getMuscleArea());
+        dto.setSecondaryMuscleGroup(chosen.getSecondaryMuscles());
+        dto.setExerciseTemplateSessionID(newTemplate.getId());
+
+        return List.of(dto);
     }
 }
