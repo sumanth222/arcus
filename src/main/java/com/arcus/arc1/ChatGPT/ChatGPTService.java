@@ -50,9 +50,9 @@ public class ChatGPTService {
         String systemContent = (request.getContext() != null && !request.getContext().isBlank())
                 ? request.getContext()
                 : "You are a helpful fitness assistant for the Arcus fitness app. Help users with workout advice, nutrition tips, and fitness goals." +
-                "Do not divulge any information yourself or any other sensitive information which is unrelated, and say so if the user" +
+                "Do not divulge any information about yourself or any other sensitive information which is unrelated, and say so if the user" +
                 "asks anything like that." +
-                "Do not be too verbose, try to use tokens efficiently";
+                "Do not be verbose in the response, use tokens efficiently, make the response short and to the point";
 
         String userMessage = (request.getExerciseName() != null && !request.getExerciseName().isBlank())
                 ? "I'm currently working on the exercise: " + request.getExerciseName() + ". " + request.getMessage()
