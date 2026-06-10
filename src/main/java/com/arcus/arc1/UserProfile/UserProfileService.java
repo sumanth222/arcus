@@ -49,7 +49,11 @@ public class UserProfileService {
                                               String level, String fitnessGoal,
                                               String workoutSplit, Integer lastWorkoutDay,
                                               Long credentialsId, Double weightKg, Double heightCm,
-                                              String workoutLocation) {
+                                              String workoutLocation,
+                                              Integer age, String gender, Integer daysPerWeek,
+                                              Integer workoutDuration, String equipment,
+                                              String weakMuscleGroups, String injuries,
+                                              String additionalNotes) {
         if (userId != null && userProfileRepo.existsByUserId(userId)) {
             throw new IllegalArgumentException("User profile already exists for userId: " + userId);
         }
@@ -60,6 +64,15 @@ public class UserProfileService {
         if (workoutLocation != null) profile.setWorkoutLocation(workoutLocation);
         if (weightKg != null) profile.setWeightKg(weightKg);
         if (heightCm != null) profile.setHeightCm(heightCm);
+        if (age != null) profile.setAge(age);
+        if (gender != null) profile.setGender(gender);
+        if (daysPerWeek != null) profile.setDaysPerWeek(daysPerWeek);
+        if (workoutDuration != null) profile.setWorkoutDuration(workoutDuration);
+        if (equipment != null) profile.setEquipment(equipment);
+        if (weakMuscleGroups != null) profile.setWeakMuscleGroups(weakMuscleGroups);
+        if (injuries != null) profile.setInjuries(injuries);
+        if (additionalNotes != null) profile.setAdditionalNotes(additionalNotes);
+        profile.setStatus(UserStatus.PENDING_REVIEW);
 
         // If userId is null, we need to save first to get the auto-generated id,
         // then use that id as the userId
@@ -103,7 +116,8 @@ public class UserProfileService {
      */
     public UserProfileDTO updateUserProfile(Long userId, String name, String email, String bio,
                                              String fitnessGoal, String currentLevel, String workoutSplit,
-                                             Double heightCm, Double weightKg, Integer lastWorkoutDay) {
+                                             Double heightCm, Double weightKg, Integer lastWorkoutDay,
+                                             String status) {
         UserProfileEntity profile = userProfileRepo.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User profile not found for userId: " + userId));
 
@@ -116,6 +130,9 @@ public class UserProfileService {
         if (heightCm != null) profile.setHeightCm(heightCm);
         if (weightKg != null) profile.setWeightKg(weightKg);
         if (lastWorkoutDay != null) profile.setLastWorkoutDay(lastWorkoutDay);
+        if (status != null && !status.isBlank()) {
+            profile.setStatus(UserStatus.valueOf(status));
+        }
 
         profile.setLastUpdatedAt(LocalDateTime.now());
         profile = userProfileRepo.save(profile);
@@ -206,6 +223,17 @@ public class UserProfileService {
         );
         dto.setWorkoutSplit(profile.getWorkoutSplit());
         dto.setWorkoutLocation(profile.getWorkoutLocation());
+        dto.setWeightKg(profile.getWeightKg());
+        dto.setHeightCm(profile.getHeightCm());
+        dto.setAge(profile.getAge());
+        dto.setGender(profile.getGender());
+        dto.setDaysPerWeek(profile.getDaysPerWeek());
+        dto.setWorkoutDuration(profile.getWorkoutDuration());
+        dto.setEquipment(profile.getEquipment());
+        dto.setWeakMuscleGroups(profile.getWeakMuscleGroups());
+        dto.setInjuries(profile.getInjuries());
+        dto.setAdditionalNotes(profile.getAdditionalNotes());
+        dto.setStatus(profile.getStatus() != null ? profile.getStatus().name() : UserStatus.PENDING_REVIEW.name());
         return dto;
     }
 

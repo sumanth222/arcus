@@ -15,6 +15,7 @@ public class UpdateProfileRequest {
     private Double heightCm;
     private Double weightKg;
     private Integer lastWorkoutDay;
+    private String status; // optional — "PENDING_REVIEW" or "ACTIVE"
 
     public UpdateProfileRequest() {}
 
@@ -44,5 +45,7 @@ public class UpdateProfileRequest {
 
     public Integer getLastWorkoutDay() { return lastWorkoutDay; }
     public void setLastWorkoutDay(Integer lastWorkoutDay) { this.lastWorkoutDay = lastWorkoutDay; }
-}
 
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+}

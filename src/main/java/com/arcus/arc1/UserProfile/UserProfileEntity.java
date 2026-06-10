@@ -83,6 +83,35 @@ public class UserProfileEntity {
     @Column(nullable = true)
     private Double heightCm;
 
+    // --- New onboarding fields ---
+    @Column(nullable = true)
+    private Integer age;
+
+    @Column(length = 50, nullable = true)
+    private String gender;
+
+    @Column(name = "days_per_week", nullable = true)
+    private Integer daysPerWeek;
+
+    @Column(name = "workout_duration", nullable = true)
+    private Integer workoutDuration;
+
+    @Column(length = 100, nullable = true)
+    private String equipment;
+
+    @Column(name = "weak_muscle_groups", columnDefinition = "TEXT", nullable = true)
+    private String weakMuscleGroups;
+
+    @Column(columnDefinition = "TEXT", nullable = true)
+    private String injuries;
+
+    @Column(name = "additional_notes", columnDefinition = "TEXT", nullable = true)
+    private String additionalNotes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30, nullable = false)
+    private UserStatus status = UserStatus.PENDING_REVIEW;
+
     // Constructor
     public UserProfileEntity() {}
 
@@ -272,6 +301,34 @@ public class UserProfileEntity {
     public void setHeightCm(Double heightCm) {
         this.heightCm = heightCm;
     }
+
+    // Getters and Setters for new fields
+    public Integer getAge() { return age; }
+    public void setAge(Integer age) { this.age = age; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public Integer getDaysPerWeek() { return daysPerWeek; }
+    public void setDaysPerWeek(Integer daysPerWeek) { this.daysPerWeek = daysPerWeek; }
+
+    public Integer getWorkoutDuration() { return workoutDuration; }
+    public void setWorkoutDuration(Integer workoutDuration) { this.workoutDuration = workoutDuration; }
+
+    public String getEquipment() { return equipment; }
+    public void setEquipment(String equipment) { this.equipment = equipment; }
+
+    public String getWeakMuscleGroups() { return weakMuscleGroups; }
+    public void setWeakMuscleGroups(String weakMuscleGroups) { this.weakMuscleGroups = weakMuscleGroups; }
+
+    public String getInjuries() { return injuries; }
+    public void setInjuries(String injuries) { this.injuries = injuries; }
+
+    public String getAdditionalNotes() { return additionalNotes; }
+    public void setAdditionalNotes(String additionalNotes) { this.additionalNotes = additionalNotes; }
+
+    public UserStatus getStatus() { return status; }
+    public void setStatus(UserStatus status) { this.status = status; }
 
     // Helper methods
     public void incrementTotalWorkouts() {

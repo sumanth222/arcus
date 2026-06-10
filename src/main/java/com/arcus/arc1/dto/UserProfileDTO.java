@@ -31,6 +31,21 @@ public class UserProfileDTO {
     private String workoutSplit;
     private String workoutLocation;
 
+    // Body metrics
+    private Double weightKg;
+    private Double heightCm;
+
+    // New onboarding fields
+    private Integer age;
+    private String gender;
+    private Integer daysPerWeek;
+    private Integer workoutDuration;
+    private String equipment;
+    private String weakMuscleGroups;
+    private String injuries;
+    private String additionalNotes;
+    private String status; // returned as plain String (enum name)
+
     // Constructor
     public UserProfileDTO() {}
 
@@ -192,5 +207,93 @@ public class UserProfileDTO {
 
     public void setWorkoutLocation(String workoutLocation) {
         this.workoutLocation = workoutLocation;
+    }
+
+    public Double getWeightKg() {
+        return weightKg;
+    }
+
+    public void setWeightKg(Double weightKg) {
+        this.weightKg = weightKg;
+    }
+
+    public Double getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Double heightCm) {
+        this.heightCm = heightCm;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public Integer getDaysPerWeek() {
+        return daysPerWeek;
+    }
+
+    public void setDaysPerWeek(Integer daysPerWeek) {
+        this.daysPerWeek = daysPerWeek;
+    }
+
+    public Integer getWorkoutDuration() {
+        return workoutDuration;
+    }
+
+    public void setWorkoutDuration(Integer workoutDuration) {
+        this.workoutDuration = workoutDuration;
+    }
+
+    public String getEquipment() {
+        return equipment;
+    }
+
+    public void setEquipment(String equipment) {
+        this.equipment = equipment;
+    }
+
+    public String getWeakMuscleGroups() {
+        return weakMuscleGroups;
+    }
+
+    public void setWeakMuscleGroups(String weakMuscleGroups) {
+        this.weakMuscleGroups = weakMuscleGroups;
+    }
+
+    public String getInjuries() {
+        return injuries;
+    }
+
+    public void setInjuries(String injuries) {
+        this.injuries = injuries;
+    }
+
+    public String getAdditionalNotes() {
+        return additionalNotes;
+    }
+
+    public void setAdditionalNotes(String additionalNotes) {
+        this.additionalNotes = additionalNotes;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

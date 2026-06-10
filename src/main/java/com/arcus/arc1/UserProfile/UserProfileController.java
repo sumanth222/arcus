@@ -47,7 +47,15 @@ public class UserProfileController {
                 request.getCredentialsId(),
                 request.getWeightKg(),
                 request.getHeightCm(),
-                request.getWorkoutLocation()
+                request.getWorkoutLocation(),
+                request.getAge(),
+                request.getGender(),
+                request.getDaysPerWeek(),
+                request.getWorkoutDuration(),
+                request.getEquipment(),
+                request.getWeakMuscleGroups(),
+                request.getInjuries(),
+                request.getAdditionalNotes()
         );
     }
 
@@ -65,12 +73,8 @@ public class UserProfileController {
     /**
      * Updates user profile information.
      *
-     * @param userId User ID
-     * @param name Updated name (optional)
-     * @param email Updated email (optional)
-     * @param bio Updated bio (optional)
-     * @param fitnessGoal Updated fitness goal (optional)
-     * @param lastWorkoutDay Updated last workout day (optional)
+     * @param userId  User ID (path variable)
+     * @param request Request body — all fields optional; pass status to activate/deactivate user
      * @return Updated UserProfileDTO
      */
     @PutMapping("/{userId}")
@@ -88,7 +92,8 @@ public class UserProfileController {
                 request.getWorkoutSplit(),
                 request.getHeightCm(),
                 request.getWeightKg(),
-                request.getLastWorkoutDay()
+                request.getLastWorkoutDay(),
+                request.getStatus()
         );
     }
 
