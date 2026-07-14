@@ -1,5 +1,6 @@
 package com.arcus.arc1.WorkoutSession;
 
+import com.arcus.arc1.AiWorkoutPlan.AiWorkoutPlanService;
 import com.arcus.arc1.ExerciseSession.ExerciseSessionEntity;
 import com.arcus.arc1.ExerciseSession.ExerciseSessionRepo;
 import com.arcus.arc1.TemplateExcercise.TemplateExerciseEntity;
@@ -13,7 +14,6 @@ import com.arcus.arc1.UserProfile.UserProfileRepo;
 import com.arcus.arc1.ExerciseLibrary.ExerciseLibraryRepo;
 import com.arcus.arc1.ExerciseLibrary.ExerciseLibraryEntity;
 import com.arcus.arc1.dto.ExerciseDTO;
-import com.arcus.arc1.dto.MuscleRequest;
 import com.arcus.arc1.dto.NextWorkoutInfoDTO;
 import com.arcus.arc1.dto.WorkoutResponseDTO;
 import com.arcus.arc1.levelDeterminer.WeightAssignmentService;
@@ -30,15 +30,20 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Service for generating workouts with intelligent weight assignment.
+ * Core service responsible for generating workouts and managing workout sessions.
  *
- * Workflow:
- * 1. Fetch workout template based on user level
- * 2. Create workout session
- * 3. For each exercise in template:
- *    - Assign weight based on user level (new users) or previous performance
- *    - Create exercise session with assigned weight
- * 4. Return workout with dynamically assigned weights
+ * There are two generation paths:
+ *
+ *  1. generateCustomWorkout() — the primary path used by the mobile app.
+ *     - Checks ai_workout_plan for exercises chosen by ChatGPT for this user+day.
+ *     - On the user's FIRST visit to a day   → uses the stored AI plan (created at onboarding).
+ *     - On SUBSEQUENT visits (new cycle)     → calls ChatGPT again with a compact prompt
+ *       to produce fresh exercises, avoiding repeats from the previous cycle.
+ *     - Falls back to random selection from exercise_library if no AI plan exists.
+ *
+ *  2. generateWorkout() — legacy path, kept for backward compatibility.
+ *     - Uses pre-seeded WorkoutTemplate + TemplateExercise rows.
+ *     - Dynamically adjusts weights based on ExerciseSession history.
  */
 @Service
 public class WorkoutGenerationService {
@@ -52,6 +57,7 @@ public class WorkoutGenerationService {
     private final UserProfileRepo userProfileRepo;
     private final WorkoutExerciseTemplateRepository workoutExerciseTemplateRepository;
     private final SetLogRepo setLogRepo;
+    private final AiWorkoutPlanService aiWorkoutPlanService;
 
     @Autowired
     public WorkoutGenerationService(
@@ -63,7 +69,8 @@ public class WorkoutGenerationService {
             ExerciseLibraryRepo exerciseLibraryRepo,
             UserProfileRepo userProfileRepo,
             WorkoutExerciseTemplateRepository workoutExerciseTemplateRepository,
-            SetLogRepo setLogRepo
+            SetLogRepo setLogRepo,
+            AiWorkoutPlanService aiWorkoutPlanService
     ) {
         this.templateRepo = templateRepo;
         this.exerciseRepo = exerciseRepo;
@@ -74,6 +81,7 @@ public class WorkoutGenerationService {
         this.userProfileRepo = userProfileRepo;
         this.workoutExerciseTemplateRepository = workoutExerciseTemplateRepository;
         this.setLogRepo = setLogRepo;
+        this.aiWorkoutPlanService = aiWorkoutPlanService;
     }
 
     /**
@@ -219,58 +227,41 @@ public class WorkoutGenerationService {
             workoutExerciseTemplateRepository.deleteAll(staleTemplates);
         }
 
-        // ── Always generate fresh exercises ───────────────────────────────────
+        // ── Select exercises fresh from the current request ───────────────────
+        // Muscles, level, and user profile come directly from the request — no stored
+        // plan is read. ChatGPT picks the best exercises from our library on every call.
         List<ExerciseDTO> result = new ArrayList<>();
         List<WorkoutExerciseTemplateEntity> templateEntities = new ArrayList<>();
         List<ExerciseLibraryEntity> allExerciseEntities = new ArrayList<>();
 
         List<String> muscles = request.getRequestedMuscles();
-
-        // ── Total exercise count by level ──────────────────────────────────────
         boolean isAdvancedOrIntermediate = "intermediate".equalsIgnoreCase(level)
                 || "advanced".equalsIgnoreCase(level);
         int totalExercises = isAdvancedOrIntermediate ? 6 : 5;
 
-        // ── Allocate exercises per muscle group ────────────────────────────────
-        int[] allocation = distributeExercises(totalExercises, muscles.size());
+        List<ExerciseLibraryEntity> selectedExercises =
+                aiWorkoutPlanService.selectExercisesForWorkout(muscles, totalExercises, userProfile, workoutLocation);
 
-        for (int m = 0; m < muscles.size(); m++) {
-            String muscleRequest = muscles.get(m);
-            int countForMuscle = allocation[m];
-            if (countForMuscle <= 0) continue;
+        for (ExerciseLibraryEntity exLib : selectedExercises) {
+            ExerciseDTO edto = new ExerciseDTO();
+            edto.setExerciseName(exLib.getName());
+            edto.setRepMin(exLib.getRepMin());
+            edto.setRepMax(exLib.getRepMax());
+            edto.setSets(exLib.getSets());
+            edto.setMuscleArea(exLib.getMuscleArea());
+            edto.setSecondaryMuscleGroup(exLib.getSecondaryMuscles());
+            edto.setTip(exLib.getTip());
+            edto.setVideoUrl(exLib.getVideoUrl());
+            result.add(edto);
+            allExerciseEntities.add(exLib);
 
-            List<ExerciseLibraryEntity> exerciseLibraryEntities;
-            if (allowedEquipment == null) {
-                // "both" / no filter — use existing unrestricted query
-                exerciseLibraryEntities = exerciseLibraryRepo.findByMuscleGroupAndLevelContains(muscleRequest, level);
-            } else {
-                // Filter by location-derived equipment list
-                exerciseLibraryEntities = exerciseLibraryRepo.findByMuscleGroupAndLevelContainsAndEquipmentIn(muscleRequest, level, allowedEquipment);
-            }
-
-            exerciseLibraryEntities = pickRandom(exerciseLibraryEntities, countForMuscle);
-
-            allExerciseEntities.addAll(exerciseLibraryEntities);
-            exerciseLibraryEntities.forEach(exerciseLibraryEntity -> {
-                ExerciseDTO edto = new ExerciseDTO();
-                edto.setExerciseName(exerciseLibraryEntity.getName());
-                edto.setRepMax(exerciseLibraryEntity.getRepMax());
-                edto.setRepMin(exerciseLibraryEntity.getRepMin());
-                edto.setSets(exerciseLibraryEntity.getSets());
-                edto.setMuscleArea(exerciseLibraryEntity.getMuscleArea());
-                edto.setSecondaryMuscleGroup(exerciseLibraryEntity.getSecondaryMuscles());
-                edto.setTip(exerciseLibraryEntity.getTip());
-                edto.setVideoUrl(exerciseLibraryEntity.getVideoUrl());
-                result.add(edto);
-
-                WorkoutExerciseTemplateEntity entity = new WorkoutExerciseTemplateEntity();
-                entity.setUserId(userId != null ? userId.intValue() : null);
-                entity.setDayNumber(dayNumber);
-                entity.setExerciseLibraryId(exerciseLibraryEntity.getId() != null ? exerciseLibraryEntity.getId().intValue() : null);
-                entity.setCreatedAt(ZonedDateTime.now());
-                edto.setExerciseTemplateSessionID(exerciseLibraryEntity.getId());
-                templateEntities.add(entity);
-            });
+            WorkoutExerciseTemplateEntity entity = new WorkoutExerciseTemplateEntity();
+            entity.setUserId(userId != null ? userId.intValue() : null);
+            entity.setDayNumber(dayNumber);
+            entity.setExerciseLibraryId(exLib.getId() != null ? exLib.getId().intValue() : null);
+            entity.setCreatedAt(ZonedDateTime.now());
+            edto.setExerciseTemplateSessionID(exLib.getId());
+            templateEntities.add(entity);
         }
 
         // Save all generated template entities
@@ -285,11 +276,9 @@ public class WorkoutGenerationService {
             double weight;
             if (!logs.isEmpty()) {
                 double raw = logs.stream().mapToDouble(SetLogEntity::getWeight).average().orElse(0.0);
-                // Re-round using split-aware rounding (logs may have been stored before this fix)
                 weight = weightAssignmentService.roundToGymWeight(raw, exLib.getName());
             } else {
                 weight = resolveBaseWeight(exLib, level);
-                // Apply split-aware rounding to DB base weights too
                 weight = weightAssignmentService.roundToGymWeight(weight, exLib.getName());
             }
             edto.setTargetWeight(weight);
@@ -306,23 +295,6 @@ public class WorkoutGenerationService {
         return new WorkoutResponseDTO(finalSession.getId(), level, dayNumber, result);
     }
 
-    /**
-     * Distributes {@code total} exercises across {@code numGroups} muscle groups,
-     * giving priority to the first (major) group.
-     *
-     * Rules:
-     *  - Major group gets ⌈total × 0.6⌉ exercises (at least 2 if possible).
-     *  - Every minor group gets at least 1 exercise.
-     *  - If total is too small to give major its share AND give each minor at least 1,
-     *    major is reduced so every minor still gets 1.
-     *
-     * Examples:
-     *  total=5, groups=1  → [5]
-     *  total=5, groups=2  → [3, 2]      (chest + triceps, beginner)
-     *  total=6, groups=2  → [4, 2]      (chest + triceps, intermediate)
-     *  total=5, groups=3  → [3, 1, 1]
-     *  total=6, groups=3  → [4, 1, 1]
-     */
     /**
      * Resolves a WorkoutTemplateEntity using goal + day, optionally scoped to a split.
      * Level is intentionally excluded — for a given split and day the template is the
@@ -341,6 +313,10 @@ public class WorkoutGenerationService {
                                 + ", day=" + dayNumber));
     }
 
+    /**
+     * Distributes {@code total} exercises across {@code numGroups} muscle groups,
+     * giving priority to the first (major) group (~60%). Each minor group gets at least 1.
+     */
     private int[] distributeExercises(int total, int numGroups) {
         if (numGroups <= 0) return new int[0];
         int[] alloc = new int[numGroups];

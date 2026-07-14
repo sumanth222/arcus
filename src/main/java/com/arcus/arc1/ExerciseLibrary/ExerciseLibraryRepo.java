@@ -40,11 +40,13 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
             String muscleGroup, String muscleArea, String category, List<String> unavailableEquipment, Long excludeId);
 
     /**
-     * Fetch exercises for a muscle group where the comma-separated 'level' field contains the user's level.
-     * e.g. level="beginner,intermediate" will match a user with level="beginner".
+     * Fetch exercises for a muscle group where the comma-separated 'level' field contains the user's level
+     * OR contains 'all' (meaning the exercise is suitable for every level).
+     * Uses regexp_split_to_array to handle optional spaces around commas.
      */
     @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
-            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ','))",
+            "AND (LOWER(:level) = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*')) " +
+            "     OR 'all' = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*')))",
             nativeQuery = true)
     List<ExerciseLibraryEntity> findByMuscleGroupAndLevelContains(
             @Param("muscleGroup") String muscleGroup,
@@ -53,11 +55,12 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
 
     /**
      * Fetch exercises for a muscle group and list of muscle areas where the comma-separated 'level'
-     * field contains the user's level.
+     * field contains the user's level OR 'all'.
      */
     @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
             "AND UPPER(muscle_area) IN (:muscleAreas) " +
-            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ','))",
+            "AND (LOWER(:level) = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*')) " +
+            "     OR 'all' = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*')))",
             nativeQuery = true)
     List<ExerciseLibraryEntity> findByMuscleGroupAndMuscleAreaInAndLevelContains(
             @Param("muscleGroup") String muscleGroup,
@@ -66,11 +69,12 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
     );
 
     /**
-     * Fetch exercises for a muscle group where the comma-separated 'level' field contains the user's level,
+     * Fetch exercises for a muscle group where level contains the user's level OR 'all',
      * filtered to only allowed equipment types (based on workout location).
      */
     @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
-            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ',')) " +
+            "AND (LOWER(:level) = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*')) " +
+            "     OR 'all' = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*'))) " +
             "AND LOWER(equipment) IN (:equipmentList)",
             nativeQuery = true)
     List<ExerciseLibraryEntity> findByMuscleGroupAndLevelContainsAndEquipmentIn(
@@ -80,11 +84,11 @@ public interface ExerciseLibraryRepo extends JpaRepository<ExerciseLibraryEntity
     );
 
     /**
-     * Replacement query: muscle group + level + optional equipment filter + exclude already-used IDs.
-     * When equipmentList is not needed pass all equipment types; caller controls the filter via the list.
+     * Replacement query: muscle group + level (or 'all') + equipment filter + exclude already-used IDs.
      */
     @Query(value = "SELECT * FROM exercise_library WHERE UPPER(muscle_group) = UPPER(:muscleGroup) " +
-            "AND LOWER(:level) = ANY(string_to_array(LOWER(level), ',')) " +
+            "AND (LOWER(:level) = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*')) " +
+            "     OR 'all' = ANY(regexp_split_to_array(LOWER(level), '\\s*,\\s*'))) " +
             "AND LOWER(equipment) IN (:equipmentList) " +
             "AND id NOT IN (:excludeIds) " +
             "ORDER BY RANDOM() LIMIT 10",

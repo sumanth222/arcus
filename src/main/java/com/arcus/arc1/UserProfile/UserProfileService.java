@@ -1,5 +1,6 @@
 package com.arcus.arc1.UserProfile;
 
+import com.arcus.arc1.AiWorkoutPlan.AiWorkoutPlanService;
 import com.arcus.arc1.ExerciseSession.ExerciseSessionEntity;
 import com.arcus.arc1.ExerciseSession.ExerciseSessionRepo;
 import com.arcus.arc1.SetLog.SetLogEntity;
@@ -27,17 +28,20 @@ public class UserProfileService {
     private final ExerciseSessionRepo exerciseSessionRepo;
     private final SetLogRepo setLogRepo;
     private final UserCredentialsRepository credentialsRepo;
+    private final AiWorkoutPlanService aiWorkoutPlanService;
 
     public UserProfileService(UserProfileRepo userProfileRepo,
                              WorkoutSessionRepo workoutSessionRepo,
                              ExerciseSessionRepo exerciseSessionRepo,
                              SetLogRepo setLogRepo,
-                             UserCredentialsRepository credentialsRepo) {
+                             UserCredentialsRepository credentialsRepo,
+                             AiWorkoutPlanService aiWorkoutPlanService) {
         this.userProfileRepo = userProfileRepo;
         this.workoutSessionRepo = workoutSessionRepo;
         this.exerciseSessionRepo = exerciseSessionRepo;
         this.setLogRepo = setLogRepo;
         this.credentialsRepo = credentialsRepo;
+        this.aiWorkoutPlanService = aiWorkoutPlanService;
     }
 
     /**
@@ -98,6 +102,12 @@ public class UserProfileService {
             credentials.setUserId(profile.getUserId());
             credentialsRepo.save(credentials);
         }
+
+        // ── Trigger AI workout plan generation asynchronously ────────────────
+        // Runs on a background thread so it doesn't block the HTTP response.
+        // The plan will be available in the ai_workout_plan table once complete.
+        final Long savedUserId = profile.getUserId();
+        aiWorkoutPlanService.generatePlanAsync(savedUserId);
 
         return convertToDTO(profile);
     }
