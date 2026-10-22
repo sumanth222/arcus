@@ -1,5 +1,6 @@
 package com.arcus.arc1.email;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,7 +45,10 @@ public class RsvpEmailService {
 
         Map<String, Object> payload = Map.of(
                 "from", sender,
-                "to", List.of(recipient),
+                "to", Arrays.stream(recipient.split(","))
+                        .map(String::trim)
+                        .filter(address -> !address.isEmpty())
+                        .toList(),
                 "subject", "Wedding RSVP Guest List",
                 "html", html,
                 "text", plainText
