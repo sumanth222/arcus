@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  arcus-api:
+    build: .
+    image: arcus-api:latest
+    container_name: arcus-api
+    ports:
+      - "8080:8080"
+    environment:
+      # Override these in production (e.g. via hosting platform env vars or a .env file)
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:6543/postgres?user=postgres.bdoaznoajsllanqvejbo&password=AmketteNatural@1&prepareThreshold=0}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres.bdoaznoajsllanqvejbo}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-AmketteNatural@1}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

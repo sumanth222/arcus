@@ -2,6 +2,8 @@ package com.arcus.arc1.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -30,6 +32,24 @@ public class SecurityConfig {
 
         return http.build();
     }
+
+//    @Bean
+//    SecurityFilterChain rsvpSecurityFilterChain(
+//            HttpSecurity http
+//    ) throws Exception {
+//
+//        http
+//                .cors(Customizer.withDefaults())
+//                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/rsvps"))
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(
+//                                HttpMethod.POST, "/api/rsvps"
+//                        ).permitAll()
+//                        .anyRequest().authenticated()
+//                );
+//
+//        return http.build();
+//    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

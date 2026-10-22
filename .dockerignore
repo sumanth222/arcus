@@ -1,8 +1,6 @@
 # Build artifacts
 build/
-
-# Gradle cache (NOT the gradle wrapper folder which is needed for the build)
-**/.gradle/
+.gradle/
 
 # IDE files
 .idea/
